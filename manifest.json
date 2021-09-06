@@ -1,0 +1,38 @@
+{
+  "name": "Connexus Homeroom Attendance Tool",
+  "description": "Overhaul of the default Activities Log page within Connexus.",
+  "version": "1.0.1",
+  "manifest_version": 2,
+  "content_security_policy": "script-src 'self'; object-src 'self'; script-src-elem 'self' 'unsafe-inline' https://tagmanager.google.com/ https://www.googletagmanager.com/ https://stackpath.bootstrapcdn.com/ https://code.jquery.com/ https://cdnjs.cloudflare.com/",
+  "background": {
+    "persistent": false,
+	"scripts": ["js/utils/jquery.js","background.js"]
+  },
+  "browser_action": {
+    "default_title": "Connexus Attendance Assistant",
+	"default_popup": "popup.html",
+	"default_icon": "/images/icon.png"
+  },
+	"content_scripts": [
+	  {
+      "matches": ["https://www.connexus.com/webuser/activity/activity.aspx?idWebuser=*"],
+      "js": ["CryptoJS/aes.js","js/connexus/cat/activityView.js"],
+      "all_frames": true,
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://www.connexus.com/activitytracker/default/weeksummary?idWebuser=*"],
+      "js": ["CryptoJS/aes.js","js/connexus/cat/weekView.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "webNavigation",
+    "downloads",
+    "storage",
+    "tabs",
+    "windows",
+    "<all_urls>"
+  ]
+}

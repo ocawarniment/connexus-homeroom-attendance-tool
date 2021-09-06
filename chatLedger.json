@@ -1,0 +1,142 @@
+{
+  "version": "1.0.19",
+  "update-date": "09-05-2021",
+  "cryptoPass": "oca2018",
+  "oca": {
+      "name":"oca", 
+      "truancyDataView": {
+        "id": "15492",
+        "measures": {
+            "lastLogin": {"name":"Last Login", "domSelector":"#EF_LastLogin"},
+            "lastContact": {"name":"Last Contact", "domSelector":"#EF_StudentLastSynchronousContact"},
+            "missingHours": {"name":"Hours Missed Year to Date", "domSelector":"#OCA_Truancy2122_HrsMissedYTD", "defaultValue":0, "type": "number"},
+            "gapDate": {"name":"Last Day with Approved Attendance", "domSelector":"#OCA_LastDayWUnapprovedAttend"},
+            "totalApproved": {"name":"Actual Attendance Hours", "domSelector":"#OCA_Truancy2122_ActualAttHrs", "type": "number"},
+            "totalRequired": {"name":"Required Attendance Hours", "domSelector": "#OCA_Truancy2122_ReqInstrucHrs", "type": "number"},
+            "lessonsBehind": {"name":"Lessons Behind", "domSelector":"#EF_NumberLessonsBehind", "defaultValue":0, "type": "number"},
+            "attendanceMetric": {"name":"Attendance Metric", "domSelector":"#EF_AttendanceMetric", "type": "number"},
+            "firstDay": {"name":"Enrollment Date", "domSelector":"#EF_EnrollmentDate"},
+            "cteStudent": {"name": "Enrolled in CTE", "domSelector":"#EnrolledinCTECourse_2122"},
+            "ccpStudent": {"name": "Enrolled in CCP", "domSelector":"#EnrolledInCollege_2122"},
+            "cteHours": {"name": "CTE Hours Per Day", "domSelector":"#Ohio_Truancy2122_CTECATHrsDay", "type": "number"},
+            "ccpHours": {"name": "CCP Hours Per Day", "domSelector":"#Ohio_Truancy2122_CCPCATHrsDay", "type": "number"},
+            "stateId": {"name": "Student State ID", "domSelector":"#Student_ID"}
+        },
+        "metrics": {
+            "netHours": {"measureOne": "totalApproved", "measureTwo": "totalRequired", "operation": "subtract"}
+        }
+      },
+      "attenAlg": [
+          {"conditions": [ 
+              {"variable":"missingHours","operator":"greater-than-or-equal-to","value":0}, 
+              {"variable":"lessonsBehind","operator":"less-than","value":20} 
+          ], "result": {"state": "Approve", "color":"green", "suggestion": "Approve attendance as is.", "summary": "Student is caught up on time and is less than 20 lessons behind."}},
+          {"conditions": [ 
+              {"variable":"missingHours","operator":"greater-than-or-equal-to","value":0}, 
+              {"variable":"lessonsBehind","operator":"greater-than-or-equal-to","value":20}, 
+              {"variable":"lessonsBehind","operator":"less-than","value":35} 
+          ], "result": {"state": "Review", "color":"yellow", "suggestion": "Consider adjustments", "summary": "Student is caught up on time, but is slightly behind with 20 or more lessons."}},
+          {"conditions": [ {
+              "variable":"missingHours","operator":"greater-than-or-equal-to","value":0}, 
+              {"variable":"lessonsBehind","operator":"greater-than-or-equal-to","value":35} 
+          ], "result": {"state": "Adjust", "color":"red", "suggestion": "Consider removing time.", "summary": "Student is caught up on time, but is far behind with 35 or more lessons." }},
+          {"conditions":[
+              {"variable":"missingHours","operator":"less-than","value":0}, 
+              {"variable":"lessonsBehind","operator":"greater-than-or-equal-to","value":20},
+              {"variable":"lessonTimeAlignment","operator":"within-plus-minus-range","value":10}
+          ],"result":{"state": "Review", "color":"yellow", "suggestion": "Missing time and lessons are aligned.", "summary": "Student is behind on time and lessons, but those numbers are closely aligned assuming 1hr per lesson."}},
+          {"conditions":[
+              {"variable":"missingHours","operator":"less-than","value":0},
+              {"variable":"lessonsBehind","operator":"greater-than-or-equal-to","value":20},
+              {"variable":"lessonTimeAlignment","operator":"exceeds-plus-minus-range","value":10}
+          ],"result":{"state": "Adjust", "color":"red", "suggestion": "Align time with missing lessons.", "summary": "Student is behind on time and lessons and those numbers are not closely aligned."}},
+          {"conditions":[
+              {"variable":"missingHours","operator":"less-than","value":0}, 
+              {"variable":"lessonsBehind","operator":"less-than","value":20}
+          ],"result":{"state": "Adjust", "color":"red", "suggestion": "Consider adding time.", "summary": "Student is behnd on time, but caught up on lessons."}}
+      ],
+      "calendar": ["8/16/2021", "8/17/2021", "8/18/2021", "8/19/2021", "8/20/2021", "8/23/2021", "8/24/2021", "8/25/2021", "8/26/2021", "8/27/2021", "8/30/2021", "8/31/2021", "9/1/2021", "9/2/2021", "9/3/2021", "9/7/2021", "9/8/2021", "9/9/2021", "9/10/2021", "9/13/2021", "9/14/2021", "9/15/2021", "9/16/2021", "9/17/2021", "9/20/2021", "9/21/2021", "9/22/2021", "9/23/2021", "9/24/2021", "9/27/2021", "9/28/2021", "9/29/2021", "9/30/2021", "10/1/2021", "10/4/2021", "10/5/2021", "10/6/2021", "10/7/2021", "10/8/2021", "10/12/2021", "10/13/2021", "10/14/2021", "10/15/2021", "10/18/2021", "10/19/2021", "10/20/2021", "10/21/2021", "10/22/2021", "10/25/2021", "10/26/2021", "10/27/2021", "10/28/2021", "10/29/2021", "11/1/2021", "11/2/2021", "11/3/2021", "11/4/2021", "11/5/2021", "11/8/2021", "11/9/2021", "11/10/2021", "11/11/2021", "11/12/2021", "11/15/2021", "11/16/2021", "11/17/2021", "11/18/2021", "11/19/2021", "11/22/2021", "11/23/2021", "11/29/2021", "11/30/2021", "12/1/2021", "12/2/2021", "12/3/2021", "12/6/2021", "12/7/2021", "12/8/2021", "12/9/2021", "12/10/2021", "12/13/2021", "12/14/2021", "12/15/2021", "12/16/2021", "12/17/2021", "12/20/2021", "1/10/2022", "1/11/2022", "1/12/2022", "1/13/2022", "1/14/2022", "1/18/2022", "1/19/2022", "1/20/2022", "1/21/2022", "1/24/2022", "1/25/2022", "1/26/2022", "1/27/2022", "1/28/2022", "1/31/2022", "2/1/2022", "2/2/2022", "2/3/2022", "2/4/2022", "2/7/2022", "2/8/2022", "2/9/2022", "2/10/2022", "2/11/2022", "2/14/2022", "2/15/2022", "2/16/2022", "2/17/2022", "2/18/2022", "2/22/2022", "2/23/2022", "2/24/2022", "2/25/2022", "2/28/2022", "3/1/2022", "3/2/2022", "3/3/2022", "3/4/2022", "3/7/2022", "3/8/2022", "3/9/2022", "3/10/2022", "3/11/2022", "3/21/2022", "3/22/2022", "3/23/2022", "3/24/2022", "3/25/2022", "3/28/2022", "3/29/2022", "3/30/2022", "3/31/2022", "4/1/2022", "4/4/2022", "4/5/2022", "4/6/2022", "4/7/2022", "4/8/2022", "4/11/2022", "4/12/2022", "4/13/2022", "4/14/2022", "4/15/2022", "4/18/2022", "4/19/2022", "4/20/2022", "4/21/2022", "4/22/2022", "4/25/2022", "4/26/2022", "4/27/2022", "4/28/2022", "4/29/2022", "5/2/2022", "5/3/2022", "5/4/2022", "5/5/2022", "5/6/2022", "5/9/2022", "5/10/2022", "5/11/2022", "5/12/2022", "5/13/2022", "5/16/2022", "5/17/2022", "5/18/2022", "5/19/2022", "5/20/2022"]
+    },
+    "grca": {
+      "name":"grca", 
+      "truancyDataView": {
+        "id": "15481",
+        "measures": {
+            "lastLogin": {"name":"Last Login", "domSelector":"#EF_LastLogin"},
+            "lastContact": {"name":"Last Contact", "domSelector":"#EF_StudentLastSynchronousContact"},
+            "netHours": {"name":"Hours Missed Year to Date", "domSelector":"#OCA_Truancy2122_HrsMissedYTD", "defaultValue":0},
+            "gapDate": {"name":"Last Day with Approved Attendance", "domSelector":"#OCA_LastDayWUnapprovedAttend"},
+            "totalApproved": {"name":"Actual Attendance Hours", "domSelector":"#OCA_Truancy2122_ActualAttHrs"},
+            "totalRequired": {"name":"Required Attendance Hours", "domSelector": "#OCA_Truancy2122_ReqInstrucHrs"},
+            "lessonsBehind": {"name":"Lessons Behind", "domSelector":"#EF_NumberLessonsBehind", "defaultValue":0},
+            "attendanceMetric": {"name":"Attendance Metric", "domSelector":"#EF_AttendanceMetric"},
+            "firstDay": {"name":"Enrollment Date", "domSelector":"#EF_EnrollmentDate"},
+            "cteStudent": {"name": "Enrolled in CTE", "domSelector":"#EnrolledinCTECourse_2122"},
+            "ccpStudent": {"name": "Enrolled in CCP", "domSelector":"#EnrolledInCollege_2122"},
+            "cteHours": {"name": "CTE Hours Per Day", "domSelector":"#Ohio_Truancy2122_CTECATHrsDay"},
+            "ccpHours": {"name": "CCP Hours Per Day", "domSelector":"#Ohio_Truancy2122_CCPCATHrsDay"},
+            "stateId": {"name": "Student State ID", "domSelector":"#Student_ID"}
+        }
+      },
+      "attenAlg": [
+          {"conditions": [ 
+              {"variable":"netHours","operator":"greater-than-or-equal-to","value":0}, 
+              {"variable":"lessonsBehind","operator":"less-than","value":20} 
+          ], "result": {"state": "Approve", "color":"green", "suggestion": "Approve attendance as is.", "summary": "Student is caught up on time and is less than 20 lessons behind."}},
+          {"conditions": [ 
+              {"variable":"netHours","operator":"greater-than-or-equal-to","value":0}, 
+              {"variable":"lessonsBehind","operator":"greater-than-or-equal-to","value":20}, 
+              {"variable":"lessonsBehind","operator":"less-than","value":35} 
+          ], "result": {"state": "Review", "color":"yellow", "suggestion": "Consider adjustments", "summary": "Student is caught up on time, but is slightly behind with 20 or more lessons."}},
+          {"conditions": [ {
+              "variable":"netHours","operator":"greater-than-or-equal-to","value":0}, 
+              {"variable":"lessonsBehind","operator":"greater-than-or-equal-to","value":35} 
+          ], "result": {"state": "Adjust", "color":"red", "suggestion": "Consider removing time.", "summary": "Student is caught up on time, but is far behind with 35 or more lessons." }},
+          {"conditions":[
+              {"variable":"netHours","operator":"less-than","value":0}, 
+              {"variable":"lessonsBehind","operator":"greater-than-or-equal-to","value":20},
+              {"variable":"lessonTimeAlignment","operator":"within-plus-minus-range","value":10}
+          ],"result":{"state": "Review", "color":"yellow", "suggestion": "Missing time and lessons are aligned.", "summary": "Student is behind on time and lessons, but those numbers are closely aligned assuming 1hr per lesson."}},
+          {"conditions":[
+              {"variable":"netHours","operator":"less-than","value":0},
+              {"variable":"lessonsBehind","operator":"greater-than-or-equal-to","value":20},
+              {"variable":"lessonTimeAlignment","operator":"exceeds-plus-minus-range","value":10}
+          ],"result":{"state": "Adjust", "color":"red", "suggestion": "Align time with missing lessons.", "summary": "Student is behind on time and lessons and those numbers are not closely aligned."}},
+          {"conditions":[
+              {"variable":"netHours","operator":"less-than","value":0}, 
+              {"variable":"lessonsBehind","operator":"less-than","value":20}
+          ],"result":{"state": "Adjust", "color":"red", "suggestion": "Consider adding time.", "summary": "Student is behnd on time, but caught up on lessons."}}
+      ],
+      "calendar": ["8/16/2021", "8/17/2021", "8/18/2021", "8/19/2021", "8/20/2021", "8/23/2021", "8/24/2021", "8/25/2021", "8/26/2021", "8/27/2021", "8/30/2021", "8/31/2021", "9/1/2021", "9/2/2021", "9/3/2021", "9/7/2021", "9/8/2021", "9/9/2021", "9/10/2021", "9/13/2021", "9/14/2021", "9/15/2021", "9/16/2021", "9/17/2021", "9/20/2021", "9/21/2021", "9/22/2021", "9/23/2021", "9/24/2021", "9/27/2021", "9/28/2021", "9/29/2021", "9/30/2021", "10/1/2021", "10/4/2021", "10/5/2021", "10/6/2021", "10/7/2021", "10/8/2021", "10/12/2021", "10/13/2021", "10/14/2021", "10/15/2021", "10/18/2021", "10/19/2021", "10/20/2021", "10/21/2021", "10/22/2021", "10/25/2021", "10/26/2021", "10/27/2021", "10/28/2021", "10/29/2021", "11/1/2021", "11/2/2021", "11/3/2021", "11/4/2021", "11/5/2021", "11/8/2021", "11/9/2021", "11/10/2021", "11/11/2021", "11/12/2021", "11/15/2021", "11/16/2021", "11/17/2021", "11/18/2021", "11/19/2021", "11/22/2021", "11/23/2021", "11/29/2021", "11/30/2021", "12/1/2021", "12/2/2021", "12/3/2021", "12/6/2021", "12/7/2021", "12/8/2021", "12/9/2021", "12/10/2021", "12/13/2021", "12/14/2021", "12/15/2021", "12/16/2021", "12/17/2021", "12/20/2021", "1/10/2022", "1/11/2022", "1/12/2022", "1/13/2022", "1/14/2022", "1/18/2022", "1/19/2022", "1/20/2022", "1/21/2022", "1/24/2022", "1/25/2022", "1/26/2022", "1/27/2022", "1/28/2022", "1/31/2022", "2/1/2022", "2/2/2022", "2/3/2022", "2/4/2022", "2/7/2022", "2/8/2022", "2/9/2022", "2/10/2022", "2/11/2022", "2/14/2022", "2/15/2022", "2/16/2022", "2/17/2022", "2/18/2022", "2/22/2022", "2/23/2022", "2/24/2022", "2/25/2022", "2/28/2022", "3/1/2022", "3/2/2022", "3/3/2022", "3/4/2022", "3/7/2022", "3/8/2022", "3/9/2022", "3/10/2022", "3/11/2022", "3/21/2022", "3/22/2022", "3/23/2022", "3/24/2022", "3/25/2022", "3/28/2022", "3/29/2022", "3/30/2022", "3/31/2022", "4/1/2022", "4/4/2022", "4/5/2022", "4/6/2022", "4/7/2022", "4/8/2022", "4/11/2022", "4/12/2022", "4/13/2022", "4/14/2022", "4/15/2022", "4/18/2022", "4/19/2022", "4/20/2022", "4/21/2022", "4/22/2022", "4/25/2022", "4/26/2022", "4/27/2022", "4/28/2022", "4/29/2022", "5/2/2022", "5/3/2022", "5/4/2022", "5/5/2022", "5/6/2022", "5/9/2022", "5/10/2022", "5/11/2022", "5/12/2022", "5/13/2022", "5/16/2022", "5/17/2022", "5/18/2022", "5/19/2022", "5/20/2022"]
+    },
+    "popupDisplay": [
+      {"field":"id", "displayName":"ID", "default": true},
+      {"field":"name", "displayName": "Student", "default": true},
+      {"field":"approveButton", "displayName": "Attendance", "default": true},
+      {"field":"netHours", "displayName":"Hrs Over/Under YTD", "default": false},
+      {"field":"lessonsBehind", "displayName":"Lessons Behind", "default": false},
+      {"field":"lastLogin", "displayName": "Last Login", "default": true},
+      {"field":"gapDate", "displayName":"Attendance Gap Date", "default": true},
+      {"field":"lastContact", "displayName": "Last Sync. Contact", "default": true},
+      {"field":"attendanceMetric", "displayName":"Attendance Metric", "default": true},
+      {"field":"attendanceStatus", "displayName":"Attendance Status", "default": true},
+      {"field":"ccpHours", "displayName":"CCP Req Hrs/Day", "default": false},
+      {"field":"cteHours", "displayName":"CTE Req Hrs/Day", "default": false},
+      {"field":"escReason", "displayName":"Escelation Reason", "default": false},
+      {"field":"escelation", "displayName":"Escelation Status", "default": false},
+      {"field":"firstDay", "displayName":"First Day", "default": false},
+      {"field":"stateId", "displayName":"State ID", "default": false},
+      {"field":"missingHours", "displayName":"Missing Hours YTD", "default": false},
+      {"field":"totalApproved", "displayName":"Approved Hours YTD", "default": false},
+      {"field":"totalRequired", "displayName":"Required Hours YTD", "default": false},
+      {"field":"lessonTimeAlignment", "displayName":"Alignment", "default": false}
+    ],
+    "studentLinks": [
+        {"title": "Truancy Data View", "href": "https://www.connexus.com/dataview/{{_truancyDataView.id}}?idWebuser={{id}}"},
+        {"title": "Gradebook", "href": "https://www.connexus.com/gradeBook/default.aspx?idWebuser={{id}}"},
+        {"title": "User Overview", "href": "https://www.connexus.com/webuser/overview.aspx?idWebuser={{id}}"},
+        {"title": "Assessment Results", "href": "https://www.connexus.com/assessments/results/listTaken.aspx?idWebuser={{id}}"},
+        {"title": "Student Log", "href": "https://www.connexus.com/log/default.aspx?idWebuser={{id}}"}
+    ]
+  }
+  

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <script>let dataLayer = [];</script>
+        <script>window.chatData = {};</script>
+        <script>console.log('loading');</script>
+        <!-- Google Tag Manager -->
+        <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl+'&timestamp='+Date.now().toString();f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer','GTM-WQGXS4X');</script>
+        <!-- End Google Tag Manager -->
+        <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <!-- Bootstrap CSS -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+        <!-- local -->
+        <link rel="stylesheet" href="popup.css" />
+        <script src="CryptoJS/aes.js"></script>
+        <script src="./js/utils/jquery.js"></script>
+        <script src="./js/services/storage.js"></script>
+        <script src="./js/services/algorithm.js"></script>
+        <script src="./js/services/versioning.js"></script>
+        <title>Hello, world!</title>
+    </head>
+    <body>
+        <header>
+            <div class="container-fluid" id="headerGrid">
+                <div class="row" id="headerRow">
+                <div class="col align-self-center">
+                    <img style="height: 40px; margin:15px;" id="schoolLogo" src="">
+                </div>
+                <div class="col-7 align-self-center">
+                    <div class="card" id="downloadCardFrame">
+                        <div class="card-body" id="downloadCard">
+                            <div class="row">
+                                <div class="col align-self-center">
+                                    Section ID<input type="text" id="inputSectionId"><span id="lastSyncLabel">Last Sync: </span><span id="lastSync"></span><br>
+                                    &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbspDates<input type="date" id="inputStartDate">-<input type="date"id="inputEndDate">
+                                </div>
+                                <div class="col-2">
+                                    <button type="button" class="btn btn-homeroom" id="btnDownloadSection">Download Section</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="dateBanner" class="bg-light">OTHER THING</div>
+                    </div>
+                </div>
+                <div class="col align-self-center">
+                    <span class="align-middle"><button type="button" class="btn btn-secondary" id="settingsBtn" data-bs-toggle="modal" data-bs-target="#settingsModal">Settings</button></span>
+                </div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="card" id="studentTableCard">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="studentTable"></table>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+
+        </footer>
+        <!-- SETTINGS MODAL -->
+        <div class="modal fade" id="settingsModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" id="settingsDoc" role="document">
+                <div class="modal-content" id="settingsContent">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Settings</h5>
+                        <button type="button" class="close" data-dismiss="modal" id="btn-closeSettings" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Versions -->
+                        <div class="card">
+                            <h6 class="card-header">
+                                About
+                            </h6>
+                            <div class="card-body">
+                                <div class="container">
+                                    <div class="row row-margin-5">
+                                        <div class="col">Extension Version: <span id="extVersNum">0.0.0</span></div>
+                                    </div>
+                                    <div class="row row-margin-5">
+                                        <div class="col">CHAT Ledger Version: <span id="chatVersNum">0.0.0</span></div>
+                                        <button type="button" class="btn btn-secondary btn-right-align btn-slim" id="btnUpdateChatLedger">Update</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- School -->
+                        <div class="card">
+                            <h6 class="card-header">
+                                Channel
+                            </h6>
+                            <div class="card-body">
+                                <div class="container">
+                                    <div class="btn-group" role="group" aria-label="Basic example">
+                                        <button type="button" school="oca" id="btnSchool_oca" class="btn btn-oca btn-school">OCA</button>
+                                        <button type="button" school="grca" id="btnSchool_grca" class="btn btn-grca btn-school">GRCA</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h6 class="card-header">Number of Weeks in Approval Window</h5>
+                            <div class="card-body" id="cardApprovalWindow">
+                                <div class="input-group">
+                                    <input readonly type="text" id="inputApprovalWindow" class="form-control" placeholder="# of Weeks" aria-label="# of Weeks" aria-describedby="basic-addon2">
+                                    <div class="input-group-append">
+                                    <button id="inputApprovalWindowDown" class="btn btn-outline-secondary" type="button">⇩</button>
+                                    <button id="inputApprovalWindowUp" class="btn btn-outline-secondary" type="button">⇧</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h6 class="card-header">Table Fields</h5>
+                            <div class="card-body">
+                                        <div class="d-grid gap-2 col-6 mx-auto">
+                                            <div class="btn-group" role="group" aria-label="Basic example">
+                                                <button type="button" id="tableSelectAll" class="btn btn-light btn-slim">Select All</button>
+                                                <button type="button" id="tableDeselectAll" class="btn btn-light btn-slim">Deselect All</button>
+                                            </div>
+                                        </div>
+                                <p class="card-text" id="setTableFields"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>   
+
+        <script src="js/utils/popper.js"></script>
+        <script src="js/utils/bootstrap.js"></script>
+        <script src="popup.js"></script> 
+    </body>   
+</html>
+
+<!--
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+</head>
+
+<header>
+    <nav id="navbar" class="uk-navbar-container" uk-navbar>
+        <div class="uk-navbar-left">
+            <ul class="uk-navbar-nav">
+                <li><img style="height: 50px; margin:15px;" src="images/ocalogo.png"></li>
+            </ul>
+        </div>
+        <div class="uk-navbar-right">
+            <ul class="uk-navbar-nav">
+                <li><a href="#"><img style="width:20px;" src="images/settings.png">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div style="overflow: auto;" id="downloadHomeroomCard" class="uk-card uk-card-default uk-card-small uk-card-body">
+        <div  style="float: left; height: 90px; width: 22%">
+            <center>
+                <p uk-margin>
+                    <button class="uk-button uk-button-primary uk-button-small button-cta">Download Homeroom</button>
+                </p>
+            </center>
+        </div>
+        <br>
+        <div style="padding-left: 100px">
+            Section ID: <input type="text"><br>
+            Dates: <input type="date">-<input type="date">
+        </div>
+    </div>
+
+</header>
+
+<body>
+    <div id="studentTableCard">
+        <div class="tble-grid-wrapper">
+            <div class="table-responsive pl-3 pr-3">
+            <table id="tablePlaceholder" class=""></table>
+            </div>
+        </div>
+    </div>
+</body>
+
+
+<script src="popup.js"></script>
+
+</html>
+-->
