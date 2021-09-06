@@ -20,6 +20,7 @@ function formatDate(date) {
 
 storeWork();
 
+
 function storeWork() {
 	allLessons = document.getElementById("EF_LessonsCompleted_ByCourse").innerText
 	allAssessments = document.getElementById("EF_AssessmentsCompleted_ByCourse").innerText
@@ -56,6 +57,13 @@ function storeWork() {
 			loopDate.setDate(loopDate.getDate()+1);
 		}
 		
+		storage.set({'lessonsArray': lessonsList});
+		console.log(lessonsList);
+		storage.set({'assessmentsArray': assessmentsList});
+		// send message to update the activities log
+		chrome.runtime.sendMessage({type: "updateWork"});
+
+		/*
 		if (lessonsList['totalLessons'].toString() !== runningLessonCount.toString() || assessmentsList['totalAssessments'].toString() !== runningAssessmentCount.toString()) {
 			// lessons do not add up gotta start over... :(
 			//bgConsole('counts are not correct');
@@ -68,8 +76,8 @@ function storeWork() {
 			console.log(lessonsList);
 			storage.set({'assessmentsArray': assessmentsList});
 			// send message to update the activities log
-			chrome.runtime.sendMessage({type: "updateWork"});
-			window.close();
+			//chrome.runtime.sendMessage({type: "updateWork"});
+			//try{window.close()}catch(err) {};
 		} else {
 			// lessons add up. DONE!
 			// add array to storage
@@ -77,9 +85,10 @@ function storeWork() {
 			console.log(lessonsList);
 			storage.set({'assessmentsArray': assessmentsList});
 			// send message to update the activities log
-			chrome.runtime.sendMessage({type: "updateWork"});
+			//chrome.runtime.sendMessage({type: "updateWork"});
 			
-			window.close();
+			//window.close();
 		}
+		*/
 	});
 }

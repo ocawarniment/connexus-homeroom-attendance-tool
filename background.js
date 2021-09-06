@@ -141,8 +141,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type == "updateWork") {
         try{
             // check that the originally id is still stored
+            console.log('updateWorkCounts')
             chrome.storage.local.get('actLogID', function(result) { updateWorkCounts(result.actLogID); });
             // close out any stragglers
+            // close sender
+            //chrome.tabs.remove(sender.tab.id);
             closeWorkDVs();
         }catch(err){}
     };
@@ -425,54 +428,6 @@ async function getTruancy(studentId){
             });
         })
     })
-
-    chrome.tabs.executeScript(
-        tab.id, 
-        { code: `(async function() { 
-            // Do lots of things with await
-            let result = true;
-            chrome.runtime.sendMessage(result, function (response) {
-                console.log(response); // Logs 'true'
-            });
-        })()` }, 
-        async emptyPromise => {
-    
-            // Create a promise that resolves when chrome.runtime.onMessage fires
-            const message = new Promise(resolve => {
-                const listener = request => {
-                    chrome.runtime.onMessage.removeListener(listener);
-                    resolve(request);
-                };
-                chrome.runtime.onMessage.addListener(listener);
-            });
-    
-            const result = await message;
-            console.log(result); // Logs true
-        }); 
-
-    /*
-    console.log(`called getTruancy for ${studentId}`);
-    const myPromise = new Promise((resolve, reject) => {
-        setTimeout(() => {
-          resolve('foo');
-        }, 1000);
-    });
-    return myPromise;
-    
-    return new Promise(() => {
-        return chrome.storage.local.get(null,  (result) => {
-            let students = result.students;
-            let student = students[studentId];
-            return chrome.tabs.create({ url: 'https://www.connexus.com/dataview/' + result.chatLedger[result.userSettings.school].truancyDataView.id + '?idWebuser=' + student.id, selected: false}, (tab) => {
-                // execute the get truancy values script at the document end
-                return chrome.tabs.executeScript(tab.id, {
-                    file: '/js/connexus/dataview/getTruancy.js',
-                    runAt: 'document_end'
-                });
-            });
-        })
-    })
-    */
 }
 
 
@@ -505,12 +460,17 @@ function initInstall() {
 function closeWorkDVs() {
 	// close any stragler windows that are on the Assessment and Lesson Data View
 	chrome.windows.getAll({populate:true},function(windows){
+        console.log(windows);
 	  windows.forEach(function(window){
 		window.tabs.forEach(function(tab){
+            console.log(tab);
 			// if the url matches, remove the warning using a message then close the tab
 			if (tab.url.match(/https?:\/\/www\.connexus\.com\/dataview\/410.*/g)) {
-				//close em up
-				chrome.tabs.remove(tab.id);
+                try{
+                    console.log('DELETEOING');
+                    chrome.tabs.remove(tab.id)
+                }catch(err){};
+                console.log('CLOSED');
 			};
 		});
 	  });

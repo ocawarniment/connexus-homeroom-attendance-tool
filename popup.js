@@ -379,8 +379,12 @@ function loadStudentTable(){
         noStudentsBanner.setAttribute('role', 'alert');
         noStudentsBanner.innerText = 'Enter your Section ID in the card above and click Download Section to see your students list here.';
         noStudentsBanner.setAttribute('style','margin-bottom: 0px; margin-top: 3px; text-align: center;')
-        let placeholder = document.querySelector('#studentTable');
-        placeholder.parentNode.replaceChild(noStudentsBanner, placeholder);
+        try{
+            let placeholder = document.querySelector('#studentTable');
+            placeholder.parentNode.replaceChild(noStudentsBanner, placeholder);
+        } catch(err) {
+            // do nothing
+        }
     }
 }
 

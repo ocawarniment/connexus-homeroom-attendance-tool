@@ -7,7 +7,7 @@ function bgConsole(sendCommand) {
 }
 
 // create
-createWeekSnapshot();
+document.querySelectorAll('#weekSnapshot').length == 0 ? createWeekSnapshot() : false;
 
 // prep for total calculations
 var weekLessonCount = 0;

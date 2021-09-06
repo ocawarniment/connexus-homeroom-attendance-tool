@@ -1,5 +1,5 @@
 {
-  "name": "Connexus Homeroom Attendance Tool",
+  "name": "CHAT - Connexus Homeroom Attendance Tool",
   "description": "Web extension to aggregate Connexus data for a section of students.",
   "version": "1.0.0",
   "manifest_version": 2,
@@ -9,7 +9,7 @@
 	"scripts": ["js/utils/jquery.js","background.js"]
   },
   "browser_action": {
-    "default_title": "Connexus Attendance Assistant",
+    "default_title": "Connexus Homeroom Attendance Tool",
 	"default_popup": "popup.html",
 	"default_icon": "/images/icon.png"
   },
