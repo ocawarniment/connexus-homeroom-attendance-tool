@@ -66,12 +66,22 @@ function attachHandlers(){
 
     // up and down arrow buttons on approval window
     document.querySelector('#inputApprovalWindowUp').onclick = () => { 
-        document.querySelector('#inputApprovalWindow').value < 4 ? document.querySelector('#inputApprovalWindow').value = parseInt(document.querySelector('#inputApprovalWindow').value) + 1 : window.alert('Approval window cannot exceed 4 weeks.');
-        saveSettings();
+        if(document.querySelector('#inputApprovalWindow').value < 4) {
+            document.querySelector('#inputApprovalWindow').value = parseInt(document.querySelector('#inputApprovalWindow').value) + 1;
+            saveSettings();
+            displayAutoDateRange(document.querySelector('#inputApprovalWindow').value);
+        } else {
+            window.alert('Approval window cannot exceed 4 weeks.');
+        }
     }
     document.querySelector('#inputApprovalWindowDown').onclick = () => { 
-        document.querySelector('#inputApprovalWindow').value > 1 ? document.querySelector('#inputApprovalWindow').value = parseInt(document.querySelector('#inputApprovalWindow').value) - 1 : window.alert('Approval window must be at least 1 week.');
-        saveSettings();
+        if(document.querySelector('#inputApprovalWindow').value > 1) {
+            document.querySelector('#inputApprovalWindow').value = parseInt(document.querySelector('#inputApprovalWindow').value) - 1;
+            saveSettings();
+            displayAutoDateRange(document.querySelector('#inputApprovalWindow').value);
+        } else {
+            window.alert('Approval window must be at least 1 week.');
+        }
     }
 
     // update chatLedger
@@ -123,7 +133,7 @@ function displayDateMode(){
             document.querySelector('#dateBanner').innerText = `Auto Date Mode - ${chatData.userSettings.approvalWindowWeeks} Week Approval Window`;
             document.querySelector('#dateBanner').className = 'bg-medium';
             // refresh dates
-            disableManualDateMode();
+            //disableManualDateMode();
         }
     })
 }
@@ -178,6 +188,36 @@ function disableManualDateMode() {
         chrome.storage.local.set({currentApproval: currentApproval});
         displayDateMode();
     })
+}
+
+function displayAutoDateRange(windowWeeks){
+    // calculate autoDates
+    var todayDate = new Date();
+    var startDate = new Date(todayDate);
+    // set to Monday of this week
+    startDate.setDate(todayDate.getDate() - (todayDate.getDay() + 7) % 7);
+    // set to previous Monday
+    startDate.setDate(startDate.getDate() - 7*windowWeeks);
+    var endDate = new Date(addDays(startDate,6*windowWeeks+(windowWeeks-1)));
+    // update formatting
+    var startMonth = startDate.getMonth() + 1;
+    if (startMonth < 10) { startMonth = "0" + startMonth };
+    var startDay = startDate.getDate();
+    if (startDay < 10) { startDay = "0" + startDay };
+    var startYear = startDate.getYear() + 1900;
+    var endMonth = endDate.getMonth() + 1;
+    if (endMonth < 10) { endMonth = "0" + endMonth };
+    var endDay = endDate.getDate();
+    if (endDay < 10) { endDay = "0" + endDay };
+    var endYear = endDate.getYear() + 1900;
+
+    let startDateString = startYear+"-"+startMonth+"-"+startDay;
+    let endDateString = endYear+"-"+endMonth+"-"+endDay;
+
+    document.querySelector("#inputStartDate").value = startDateString;
+    document.querySelector("#inputEndDate").value = endDateString;
+
+    displayDateMode();
 }
 
 function approveAttendance(studentID, studentInfo) {
