@@ -100,7 +100,7 @@ function getTruancy(){
 				console.log(response); // Logs 'true'
 			})
 			bgConsole.log('error');
-			//window.close();
+			window.close();
 		}
 	})
 }

@@ -49,7 +49,6 @@ function getRoster() {
                 // collect the table
                 var studentTable;
                 studentTable = document.getElementById("users_grid").getElementsByTagName("table")[0];
-                
                 scanTable(); // store the students
 				// kick it back to background to loop DV
 			}
@@ -89,16 +88,16 @@ function scanTable() {
 
 		var students = {}; // object of students This will hold multiple student objects.
 
-		studentRows.forEach(studentRow => {
-			// get the row type; account for sectioning rights; try sectioning, fallback on teacher
-			let userType = studentRow.getElementsByTagName("td")[2]?.querySelector('span')?.querySelector("option[selected='selected']").innerText || studentRow.getElementsByTagName("td")[2].innerText;
-			// check if its not a student
-			if(userType == 'Student') {
-				// getStudentId
-				let studentId = studentRow.getElementsByTagName("td")[0].innerText.trim();
-				// get student Name
-				let studentName = studentRow.getElementsByTagName("td")[1].innerText.trim();
+		let teachers = document.querySelector('#teachers').innerText;
 
+		studentRows.forEach(studentRow => {
+			// check if the name is a teacher
+			// get student Name
+			let studentName = studentRow.getElementsByTagName("td")[1].innerText.trim();
+			// getStudentId
+			let studentId = studentRow.getElementsByTagName("td")[0].innerText.trim();
+
+			if(!teachers.includes(studentName)) {
 				// create the student
 				student = {};
 				student['id'] = studentId;
