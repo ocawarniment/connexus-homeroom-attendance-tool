@@ -1,7 +1,7 @@
 {
   "name": "CHAT - Connexus Homeroom Attendance Tool",
   "description": "Web extension to aggregate Connexus data for a section of students.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "manifest_version": 2,
   "content_security_policy": "script-src 'self'; object-src 'self'; script-src-elem 'self' 'unsafe-inline' https://tagmanager.google.com/ https://www.googletagmanager.com/ https://stackpath.bootstrapcdn.com/ https://code.jquery.com/ https://cdnjs.cloudflare.com/",
   "background": {

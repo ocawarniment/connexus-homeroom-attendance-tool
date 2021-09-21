@@ -96,15 +96,26 @@ function scanTable() {
 			let studentName = studentRow.getElementsByTagName("td")[1].innerText.trim();
 			// getStudentId
 			let studentId = studentRow.getElementsByTagName("td")[0].innerText.trim();
+			// get role
+			let roleDropdown = studentRow.getElementsByTagName("td")[3].querySelector('select');
+			let sectionRole = roleDropdown.children[roleDropdown.selectedIndex].innerText;
+			// get student stage in the section
+			let stageDropdown = studentRow.getElementsByTagName("td")[4].querySelector('select');
+			let sectionStage = stageDropdown.children[stageDropdown.selectedIndex].innerText;
 
-			if(!teachers.includes(studentName)) {
-				// create the student
-				student = {};
-				student['id'] = studentId;
-				student['name'] = CryptoJS.AES.encrypt(studentName,cryptoPass);
+			if(sectionRole == 'Student') { //!teachers.includes(studentName)
+				if(sectionStage == 'In Progress') {
+					// create the student
+					student = {};
+					student['id'] = studentId;
+					student['name'] = CryptoJS.AES.encrypt(studentName,cryptoPass);
+					student['sectionStage'] = sectionStage;
 
-				// add student to the students obj
-				students['ST' + studentId] = student;
+					// add student to the students obj
+					students['ST' + studentId] = student;
+				} else {
+					console.log('student is not in progress for this section');
+				}
 			} else {
 				console.log(`That ain't no student...`);
 			}
