@@ -20,7 +20,7 @@ function loadPopup(){
         loadStudentTable();
         loadSettingsModal();
         displayDateMode();
-        attachHandlers();  
+        attachHandlers();
     })
 }
 
