@@ -578,6 +578,9 @@ function loadCurrentApproval(){
 }
 
 function loadSettingsModal(){
+    // update the download button for btnDownloadExtension
+    document.querySelector('#downExtensionLink').href = chatData.chatLedger.extensionDownloadUrl;
+
     // load the fields for the school
     loadSettingsTableFields();
 

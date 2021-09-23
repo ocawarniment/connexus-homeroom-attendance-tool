@@ -97,13 +97,13 @@ function scanTable() {
 			// getStudentId
 			let studentId = studentRow.getElementsByTagName("td")[0].innerText.trim();
 			// get role
-			let roleDropdown = studentRow.getElementsByTagName("td")[3].querySelector('select');
-			let sectionRole = roleDropdown.children[roleDropdown.selectedIndex].innerText;
+			//let roleDropdown = studentRow.getElementsByTagName("td")[3].querySelector('select');
+			//let sectionRole = roleDropdown.children[roleDropdown.selectedIndex].innerText;
 			// get student stage in the section
 			let stageDropdown = studentRow.getElementsByTagName("td")[4].querySelector('select');
 			let sectionStage = stageDropdown.children[stageDropdown.selectedIndex].innerText;
 
-			if(sectionRole == 'Student') { //!teachers.includes(studentName)
+			if(!teachers.includes(studentName)) {
 				if(sectionStage == 'In Progress') {
 					// create the student
 					student = {};
