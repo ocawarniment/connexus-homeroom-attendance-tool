@@ -315,3 +315,8 @@ input[type="date"] {
   background-color: #4e9445;
   z-index: 0 !important;
 }
+
+.btn-compMetric.active{
+  background-color: #4b8fe9;
+  z-index: 0 !important;
+}

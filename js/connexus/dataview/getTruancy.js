@@ -81,6 +81,12 @@ function getTruancy(){
 				homeroomArray[`ST${studentId}`][metricTitle] = Math.round(result*100)/100;
 			})
 
+			// store student lessonsBehind as default lessonCompMetric - only needed for OCA
+			let studentKeys = Object.keys(result.students);
+			studentKeys.forEach(studentKey => {
+				homeroomArray[studentKey]['lessonCompMetric'] = homeroomArray[studentKey]['lessonsBehind']; 
+			})
+
 			// set the extra val
 			//homeroomArray[`ST${studentId}`].lessonTimeAlignment = -1 * homeroomArray[`ST${studentId}`].lessonsBehind - homeroomArray[`ST${studentId}`].netHours;
 			

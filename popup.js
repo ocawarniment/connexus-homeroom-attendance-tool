@@ -21,6 +21,7 @@ function loadPopup(){
         loadSettingsModal();
         displayDateMode();
         attachHandlers();
+        restrictSchoolVisibility()
     })
 }
 
@@ -45,6 +46,27 @@ function selectSchool(btnId){
     loadSettingsTableFields();
     // reattch all handlers
     attachHandlers();
+}
+
+function restrictSchoolVisibility(){
+    // OCA Only
+    if(chatData.userSettings.school !== 'oca'){
+        // Primary Lesson Measure setting card
+        document.querySelector('#oca_lessonCompMeasureCard').style = 'display: none;';
+    }
+}
+
+function selectCompMetric(btnId){
+    // alert user to enable Total Overdue on sections page if clicking Overdue Lessons
+    if(btnId == 'btnCompMetric_overdue') { window.alert('This can only be downloaded for sections where you are the homeroom teacher. You will want to enable the Overdue Lessons column on this settings page as well to see this measure for each student. \n\nBe sure to redownload this section after switching this setting.') } else {
+        window.alert('Be sure to redownload this section after switching this setting.')
+    }
+    // remove active to the others
+    document.querySelectorAll('.btn-compMetric').forEach(btn => {try{ btn.classList.remove('active') }catch(err){}})
+    // add the class 'active' to the clicked button
+    document.querySelector(`#${btnId}`).classList.add('active');
+    // save settings
+    saveSettings();
 }
 
 
@@ -87,9 +109,14 @@ function attachHandlers(){
     // update chatLedger
     document.querySelector('#btnUpdateChatLedger').onclick = updateChatLedger;
 
-    // document
+    // schoolSelect btns
     document.querySelectorAll('.btn-school').forEach(btn => {
         btn.onclick = () => {selectSchool(btn.id)}
+    })
+
+    // completionMetric Buttons
+    document.querySelectorAll('.btn-compMetric').forEach(btn => {
+        btn.onclick = () => {selectCompMetric(btn.id)};
     })
 
     // attach onChange listeners to all fields for dynamic saving
@@ -590,6 +617,10 @@ function loadSettingsModal(){
     // load the extension manifest AND.chatLedger version numbers from versioning.js
     refreshVersionNumbers();
 
+    // load the completionMetric
+    let completionMetric = chatData.userSettings.completionMetric || 'behind';
+    document.querySelector(`#btnCompMetric_${completionMetric}`).classList.add('active');
+
     // set current school as active
     let school = chatData.userSettings.school;
     document.querySelector(`#btnSchool_${school}`).classList.add('active'); 
@@ -604,6 +635,10 @@ async function saveSettings(){
         // school selected - get the one that is active
         let school = document.querySelector('.btn-school.active').getAttribute('school');
         userSettings.school = school;
+
+        // lesson completion metric
+        let completionMetric = document.querySelector('.btn-compMetric.active').getAttribute("compMetric");
+        userSettings.completionMetric = completionMetric;
 
         // setTableFields
         let tableFieldsCard = document.querySelector('#setTableFields');

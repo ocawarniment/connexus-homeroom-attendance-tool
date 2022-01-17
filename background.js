@@ -62,7 +62,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         await getTruancy(studentIds[i]);
                         i++;
                     }while( i<studentIds.length );
-                    window.alert('Section download complete!');
+                    // get overdues if setting
+                    if(result.userSettings.completionMetric == 'overdue') {
+                        chrome.tabs.create({ url: 'https://www.connexus.com/sectionsandstudents#/mystudents/' + result.currentApproval.sectionId, selected: true }, function(tab) {
+                            // execute the get work script on the opened tab
+                            chrome.tabs.executeScript(tab.id, {
+                                file: '/js/connexus/myStudents/getOverdue.js',
+                                runAt: 'document_end'
+                            });
+                        });
+                    } else {
+                        // alert completion
+                        window.alert('Section download complete!');
+                    }
                 })
             }
         })();
