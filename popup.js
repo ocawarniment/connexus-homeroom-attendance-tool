@@ -58,7 +58,7 @@ function restrictSchoolVisibility(){
 
 function selectCompMetric(btnId){
     // alert user to enable Total Overdue on sections page if clicking Overdue Lessons
-    if(btnId == 'btnCompMetric_overdue') { window.alert('This can only be downloaded for sections where you are the homeroom teacher. You will want to enable the Overdue Lessons column on this settings page as well to see this measure for each student. \n\nBe sure to redownload this section after switching this setting.') } else {
+    if(btnId == 'btnCompMetric_overdue') { window.alert('This can only be downloaded for sections where you are the homeroom teacher. \n\nBe sure to redownload this section after switching this setting.') } else {
         window.alert('Be sure to redownload this section after switching this setting.')
     }
     // remove active to the others
