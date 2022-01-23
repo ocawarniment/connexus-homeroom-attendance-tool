@@ -65,6 +65,11 @@ function selectCompMetric(btnId){
     document.querySelectorAll('.btn-compMetric').forEach(btn => {try{ btn.classList.remove('active') }catch(err){}})
     // add the class 'active' to the clicked button
     document.querySelector(`#${btnId}`).classList.add('active');
+    // disable both columns
+    document.querySelector('#cb_lessonsBehind').checked = false;
+    document.querySelector('#cb_overdueLessons').checked = false;
+    // enable the new one
+    btnId == 'btnCompMetric_overdue' ? document.querySelector('#cb_overdueLessons').checked = true : document.querySelector('#cb_lessonsBehind').checked = true;
     // save settings
     saveSettings();
 }
