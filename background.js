@@ -62,8 +62,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         await getTruancy(studentIds[i]);
                         i++;
                     }while( i<studentIds.length );
-                    // get overdues if setting
-                    if(result.userSettings.completionMetric == 'overdue') {
+                    // get overdues if setting AND only for OCA
+                    if(result.userSettings.completionMetric == 'overdue' && result.userSettings.school == 'oca') {
                         chrome.tabs.create({ url: 'https://www.connexus.com/sectionsandstudents#/mystudents/' + result.currentApproval.sectionId, selected: true }, function(tab) {
                             // execute the get work script on the opened tab
                             chrome.tabs.executeScript(tab.id, {

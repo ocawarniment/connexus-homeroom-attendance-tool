@@ -35,7 +35,7 @@ function getStudents() {
 				// check if this is the section they wanted. prompt for other section
 				if(window.location.href=="https://www.connexus.com/sectionsandstudents#/mystudents/" & BACKUP_PLAN==true) {
 					// user does not have access to section. prompt for alt method
-					window.alert('You are not a homeroom teacher in this section. Please review the section ID or uncheck "Homeroom Section" on the attendance assitant.');
+					window.alert('It appears you are not the homeroom teacher on this section and cannot access Overdue Lessons. \n\nLessons Behind will be used as the primary Lesson Completion Measure. This message will continue to popup until this setting is changed on the CHAT Settings page.');
 				}
 
 				try{
