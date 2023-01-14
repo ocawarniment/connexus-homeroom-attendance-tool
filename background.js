@@ -1,7 +1,8 @@
 // load into window
 chrome.storage.local.get(null, result => {
-    window.chatLedger = result.chatLedger;
+    //window.chatLedger = result.chatLedger;
 })
+
 
 chrome.runtime.onInstalled.addListener(function(details){
     if(details.reason == "install"){
@@ -11,6 +12,35 @@ chrome.runtime.onInstalled.addListener(function(details){
         //call a function to handle an update
     }
 });
+
+// NEW Manifestv3 Content Scripts
+chrome.action.onClicked.addListener(async (tab) => {
+    // check if tab matches for activityView
+    if(tab.url.startsWith("https://www.connexus.com/webuser/activity/activity.aspx?idWebuser=")) {
+        await chrome.scripting.executeScript({
+            target: { tabId: tab.id, allFrames: true },
+            files: ["CryptoJS/aes.js","js/connexus/cat/activityView.js"],
+        });
+    } 
+    // check if tab matches week summary
+    if(tab.url.startsWith("https://www.connexus.com/activitytracker/default/weeksummary?idWebuser=")) {
+        await chrome.scripting.executeScript({
+            target: { tabId: tab.id, allFrames: true },
+            files: ["CryptoJS/aes.js","js/connexus/cat/weekView.js"],
+        });
+    } 
+  });
+
+
+// LOAD JSON Jquery Replacement
+function loadJSON(url, callback) {   
+    fetch('https://raw.githubusercontent.com/ocawarniment/ocawarniment.github.io/master/chatLedger.json')
+        // Handle success
+        .then(response => response.json())  // convert to json
+        .then(json => callback(json))    //print data to console
+}
+
+
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // log all messages not already logged
@@ -28,6 +58,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // sections w/o overdue lessons for non hr teachers
     if (request.type == "getDebugRoster") {
+        console.log('DEBUG');
         setDebugStudents();
     };
 
@@ -36,10 +67,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         chrome.storage.local.get(null,function(result){
             chrome.tabs.create({ url: 'https://www.connexus.com/lmu/sections/webusers.aspx?idSection=' + request.sectionId, selected: true}, function(tab) {
                 // execute the download homeroom external script on the new tab
-                chrome.tabs.executeScript(tab.id, {
+                /*chrome.tabs.executeScript(tab.id, {
                     file: '/js/connexus/sections/getRoster.js',
                     runAt: 'document_end'
-                });
+                });*/
+                console.log('here')
+                chrome.scripting.executeScript({
+                    target: {tabId: tab.id},
+                    files: ['/js/connexus/sections/getRoster.js']
+                })
+                console.log('and here');
             });
         });
     };
@@ -66,10 +103,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     if(result.userSettings.completionMetric == 'overdue' && result.userSettings.school == 'oca') {
                         chrome.tabs.create({ url: 'https://www.connexus.com/sectionsandstudents#/mystudents/' + result.currentApproval.sectionId, selected: true }, function(tab) {
                             // execute the get work script on the opened tab
+                            /*
                             chrome.tabs.executeScript(tab.id, {
                                 file: '/js/connexus/myStudents/getOverdue.js',
                                 runAt: 'document_end'
-                            });
+                            });*/
+                            chrome.scripting.executeScript({
+                                target: {tabId: tab.id},
+                                files: ['/js/connexus/myStudents/getOverdue.js']
+                            })
                         });
                     } else {
                         // alert completion
@@ -84,13 +126,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type == "scrapeValue") {
         //getWeaponUsage(request.weaponType).then( (results)=>{ sendResponse({results: results}); } );
         chrome.tabs.create({url: request.url, selected: false},(tab) => {
-            chrome.tabs.executeScript(tab.id, {
+
+            /*chrome.tabs.executeScript(tab.id, {
                 code: `const cssSelector="${request.cssSelector}";`,
                 runAt: 'document_end'
+            });*/
+            let fun_css = () => {const cssSelector="${request.cssSelector}";}
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: fun_css,
             });
-            chrome.tabs.executeScript(tab.id, {
+            /*chrome.tabs.executeScript(tab.id, {
                 file: 'js/services/waitAndScrape.js',
                 runAt: 'document_end'
+            },(result) => {
+                console.log(result);
+                sendResponse(result[0]);
+                chrome.tabs.remove(tab.id);
+            });*/
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: ["js/services/waitAndScrape.js"],
             },(result) => {
                 console.log(result);
                 sendResponse(result[0]);
@@ -108,9 +164,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // create the tab with the student id
             chrome.tabs.create({ url: 'https://www.connexus.com/webuser/dataview.aspx?idWebuser=' + result.studentID + '&idDataview=410', selected: false }, function(tab) {
                 // execute the get work script on the opened tab
-                chrome.tabs.executeScript(tab.id, {
+                /*chrome.tabs.executeScript(tab.id, {
                     file: 'js/connexus/dataView/getWork.js',
                     runAt: 'document_end'
+                });*/
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ["js/connexus/dataView/getWork.js"],
                 });
             });
         });
@@ -121,7 +181,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             chrome.storage.local.get(null, function(result) {
                 setTimeout(function() {
                     if(result.workReload == false) {
-                        chrome.tabs.executeScript(sender.tab.id, {code: 'if(document.getElementsByClassName("cxAlert cxAlertVisible").length == 1){chrome.runtime.sendMessage({type: "saveWork"});}', runAt: 'document_end'});
+                        let func_reloadWork = ()=>{
+                            if(document.getElementsByClassName("cxAlert cxAlertVisible").length == 1){chrome.runtime.sendMessage({type: "saveWork"});}
+                        }
+                        /*chrome.tabs.executeScript(sender.tab.id, {code: 'if(document.getElementsByClassName("cxAlert cxAlertVisible").length == 1){chrome.runtime.sendMessage({type: "saveWork"});}', runAt: 'document_end'});*/
+                        chrome.scripting.executeScript({
+                            target: { tabId: sender.tab.id },
+                            func: func_reloadWork,
+                        });
                         if(loopCount<=15) {
                             loopCount = loopCount + 1;
                             checkLoad();
@@ -139,9 +206,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         chrome.storage.local.set({"workReload": true});
         if (request.closeSender == true) { chrome.tabs.remove(sender.tab.id); }
         // load variables
-        chrome.tabs.executeScript(sender.tab.id, {
+        /*chrome.tabs.executeScript(sender.tab.id, {
             file: 'js/background/storeWork.js',
             runAt: 'document_end'
+        });*/
+        chrome.scripting.executeScript({
+            target: { tabId: sender.tab.id },
+            files: ["js/background/storeWork.js"],
         });
     }
 
@@ -179,9 +250,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type == "createLog") {
         chrome.tabs.create({ url: 'https://www.connexus.com/log/logEntry.aspx?idWebuser=' + request.studentID + '&sendto=%2flog%2fdefault.aspx%3fidWebuser%3d' + request.studentID, selected: true}, function(tab) {
             // execute the download homeroom external script on the new tab
-            chrome.tabs.executeScript(tab.id, {
+            /*chrome.tabs.executeScript(tab.id, {
                 file: 'js/connexus/log/createLog.js',
                 runAt: 'document_end'
+            });*/
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: ["js/connexus/log/createLog.js"],
             });
         });
     };
@@ -190,9 +265,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             chrome.storage.local.set({globalStartDate: request.startDate, globalEndDate: request.endDate});
             chrome.tabs.create({ url: 'https://www.connexus.com/webmail?hideHeader=true/#/composemessage?idWebuser=' + request.studentID + '&includeStudent=true&includeCaretakers=true&subject=Attendance Adjustments: ' + request.startDate + " - " + request.endDate, selected: true}, function(tab) {
                 // execute the download homeroom external script on the new tab
-                chrome.tabs.executeScript(tab.id, {
+                /*chrome.tabs.executeScript(tab.id, {
                     file: 'js/connexus/webmail/sendWebmail.js',
                     runAt: 'document_end'
+                });*/
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ["js/connexus/webmail/sendWebmail.js"],
                 });
             });
         });
@@ -208,11 +287,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }
             })
             // call the function on the the inner frame
-            chrome.tabs.executeScript(sender.tab.id,{
+            /*chrome.tabs.executeScript(sender.tab.id,{
                 frameId: catFrameId, //allFrames: true,
                 file: "js/connexus/cat/activityTracker/getCatTime.js"
             },function(results){
                 // handle results
+            });*/
+            chrome.scripting.executeScript({
+                target: { tabId: sender.tab.id },
+                files: ["js/connexus/cat/activity/activityTracker/getCatTime.js"],
             });
         });
     }
@@ -221,10 +304,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			// check that the originally id is still stored
 			chrome.storage.local.get('actLogID', function(result) {
 				chrome.tabs.update(result.actLogId, {selected: true});
-				chrome.tabs.executeScript(result.actLogId, {
+				/*chrome.tabs.executeScript(result.actLogId, {
 					file: '/js/connexus/cat/activityLog/loadCatTime.js',
 					runAt: 'document_idle'
-				});
+				});*/
+                chrome.scripting.executeScript({
+                    target: { tabId: result.actLogId },
+                    files: ["js/connexus/cat/activityLog/loadCatTime.js"],
+                });
 			});
 			if (request.closeSender == true) { chrome.tabs.remove(sender.tab.id); }
 		}
@@ -232,11 +319,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type == "loadCAT") {
         chrome.webNavigation.getAllFrames({tabId:sender.tab.id},function(frames){
             var catFrameId = frames[1].frameId;
-            chrome.tabs.executeScript(sender.tab.id,{
+            /*chrome.tabs.executeScript(sender.tab.id,{
                 frameId: catFrameId,
                 file: "js/connexus/cat/activityTracker/getTime.js"
             },function(results){
                 //Handle any results
+            });*/
+            chrome.scripting.executeScript({
+                target: { tabId: sender.tab.id },
+                files: ["js/connexus/cat/activityTracker/getTime.js"],
             });
         });
     }
@@ -252,16 +343,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             })
             // store variables to the inner frame
             console.log(frames);
-            chrome.tabs.executeScript(sender.tab.id,{
+            /*chrome.tabs.executeScript(sender.tab.id,{
                 frameId: catFrameId,
                 code: 'var callback = "' + request.callback + '"; var dailyHours='+request.dailyHours+'; var adjType="'+request.adjType+'"; var baseQuery="'+request.baseQuery+'"'
-            }),
+            }),*/
+            let func_cteccpCheckVars = (request) => {
+                var approve = request.approve; var dailyHours=request.dailyHours; var adjType=request.adjType; var baseQuery=request.baseQuery;
+            }
+            chrome.scripting.executeScript({
+                target: { tabId: sender.tab.id },
+                ffunc: func_cteccpCheckVars,
+            });
             // call the function on the the inner frame
-            chrome.tabs.executeScript(sender.tab.id,{
+            /*chrome.tabs.executeScript(sender.tab.id,{
                 frameId: catFrameId, //allFrames: true,
                 file: "js/connexus/cat/activityTracker/cteccpAdjust.js"
             },function(results){
                 //Handle any results
+            });*/
+            chrome.scripting.executeScript({
+                target: { tabId: sender.tab.id },
+                files: ["js/connexus/cat/activityTracker/cteccpAdjust.js"]
             });
         });
     }
@@ -277,16 +379,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             })
             // store variables to the inner frame
             console.log(frames);
-            chrome.tabs.executeScript(sender.tab.id,{
+            /*chrome.tabs.executeScript(sender.tab.id,{
                 frameId: catFrameId,
                 code: 'var approve = ' + request.approve + '; var dailyHours='+request.dailyHours+'; var adjType="'+request.adjType+'"; var baseQuery="'+request.baseQuery+'"'
-            }),
+            }),*/
+            let func_cteccpCheckVars = (request) => {
+                var approve = request.approve; var dailyHours=request.dailyHours; var adjType=request.adjType; var baseQuery=request.baseQuery;
+            }
+            chrome.scripting.executeScript({
+                target: { tabId: sender.tab.id },
+                func: func_cteccpCheckVars,
+            });
             // call the function on the the inner frame
-            chrome.tabs.executeScript(sender.tab.id,{
+            /*chrome.tabs.executeScript(sender.tab.id,{
                 frameId: catFrameId, //allFrames: true,
                 file: "js/connexus/cat/activityTracker/cteccpCheck.js"
             },function(results){
                 // handle results
+            });*/
+            chrome.scripting.executeScript({
+                target: { tabId: sender.tab.id },
+                files: ["js/connexus/cat/activityTracker/cteccpCheck.js"],
             });
         });
     }
@@ -302,11 +415,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }
             })
             // send to the outter frame
-            chrome.tabs.executeScript(sender.tab.id,{
+            /*chrome.tabs.executeScript(sender.tab.id,{
                 allFrames: true,
                 code: "document.querySelector('.cxPrimaryBtn').click();"
             },function(results){
                 //Handle any results
+            });*/
+            let func_cteccpClick = () => { document.querySelector('.cxPrimaryBtn').click() }
+            chrome.scripting.executeScript({
+                target: { tabId: sender.tab.id },
+                func: func_cteccpClick
             });
         });
     }
@@ -318,16 +436,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if(correct == false) {
                 const tabId = results.actLogID;
                 chrome.tabs.update(tabId, {selected: true});
-                chrome.tabs.executeScript(tabId, {
+                /*chrome.tabs.executeScript(tabId, {
                     file: 'js/connexus/cat/activityLog/cteccpInitiateChange.js',
                     runAt: 'document_idle'
+                });*/
+                chrome.scripting.executeScript({
+                    target: { tabId: tabId },
+                    files: ["js/connexus/cat/activityLog/cteccpInitiateChange.js"],
                 });
             } else {
                 const tabId = results.actLogID;
                 chrome.tabs.update(tabId, {selected: true});
-                chrome.tabs.executeScript(tabId, {
+                /*chrome.tabs.executeScript(tabId, {
                     file: 'js/connexus/cat/activityLog/cteccpConfirmTime.js',
                     runAt: 'document_idle'
+                });*/
+                chrome.scripting.executeScript({
+                    target: { tabId: tabId },
+                    files: ["js/connexus/cat/activityLog/cteccpConfirmTime.js"],
                 });
             }
         })
@@ -339,9 +465,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         setTimeout(()=>{
             chrome.tabs.create({ url: 'https://www.connexus.com/webuser/activity/activity.aspx' + request.attendanceParams, selected: true }, function(tab) {
                 // execute the get work script on the opened tab
-                chrome.tabs.executeScript(tab.id, {
+                /*chrome.tabs.executeScript(tab.id, {
                     code: 'var btnApprove = document.querySelector("#btnApprove"); btnApprove.onclick = ()=>{WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions("btnApprove", "", true, "approve", "", false, true));}; btnApprove.click();',
                     runAt: 'document_end'
+                });*/
+                let func_actLogOverride = ()=>{
+                    var btnApprove = document.querySelector("#btnApprove"); btnApprove.onclick = ()=>{WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions("btnApprove", "", true, "approve", "", false, true));}; btnApprove.click();
+                }
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: func_actLogOverride
                 });
             });
             // close the sender
@@ -357,9 +490,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 var changesString = changes.join(",");
                 console.log(changesString);
                 // execute the get work script on the opened tab
-                chrome.tabs.executeScript(tab.id, {
+                /*chrome.tabs.executeScript(tab.id, {
                     code: 'window.alert("Changes complete!");',
                     runAt: 'document_end'
+                });*/
+                let func_actLogChangeAlert = ()=>{ window.alert('Changes complete!');}
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: func_actLogChangeAlert,
                 });
             });
             // close the sender
@@ -402,8 +540,7 @@ function updateChatLedger(){
     // github url
     let githubUrl = "https://raw.githubusercontent.com/ocawarniment/ocawarniment.github.io/master/chatLedger.json" + "?timestamp=" + timestamp.toString();
     // get from github
-    $.getJSON(githubUrl, data => { 
-        // data is chatLedger
+    loadJSON(githubUrl, data => {
         chrome.storage.local.get(null, result => {
             chrome.storage.local.set({chatLedger: data});
         })
@@ -419,9 +556,27 @@ async function getTruancy(studentId){
             console.log(dvUrl);
             chrome.tabs.create({ url: dvUrl, selected: false}, (tab) => {
                 // execute the get truancy values script at the document end
-                chrome.tabs.executeScript(tab.id, {
+                /*chrome.tabs.executeScript(tab.id, {
                     file: '/js/connexus/dataview/getTruancy.js',
                     runAt: 'document_end'
+                }, async emptyPromise => {
+    
+                    // Create a promise that resolves when chrome.runtime.onMessage fires
+                    const message = new Promise(resolve => {
+                        const listener = request => {
+                            chrome.runtime.onMessage.removeListener(listener);
+                            resolve(request);
+                        };
+                        chrome.runtime.onMessage.addListener(listener);
+                    });
+            
+                    const result = await message;
+                    //console.log(result); // Logs true
+                    studentResolve(result);
+                });*/
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ["js/connexus/dataview/getTruancy.js"],
                 }, async emptyPromise => {
     
                     // Create a promise that resolves when chrome.runtime.onMessage fires
@@ -449,7 +604,8 @@ function initInstall() {
         updateChatLedger();
     } catch(err) {
         // get chatLedger - LOCAL
-        $.getJSON("chatLedger.json", (data) => { chrome.storage.local.set({chatLedger: data}) });
+        //$.getJSON("chatLedger.json", (data) => { chrome.storage.local.set({chatLedger: data}) });
+        loadJSON("chatLedger.json", data => { chrome.storage.local.set({chatLedger: data}) });
     }
     // settings object
     let userSettings = {
@@ -506,10 +662,14 @@ function focusOnAL() {
 // function to update work
 function updateWorkCounts(activitiesLogID) {
 	chrome.tabs.update(activitiesLogID, {selected: true});
-	chrome.tabs.executeScript(activitiesLogID, {
+	/*chrome.tabs.executeScript(activitiesLogID, {
 		file: 'js/background/loadWork.js',
 		runAt: 'document_idle'
-	});
+	});*/
+    chrome.scripting.executeScript({
+        target: { tabId: activitiesLogID },
+        files: ["js/background/loadWork.js"],
+    });
 }
 
 function setDebugStudents(){
