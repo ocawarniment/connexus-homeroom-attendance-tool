@@ -751,7 +751,8 @@ async function refreshSchoolVars(){
 
 // make the logo a toggle'
 document.querySelector('#schoolLogo').onclick = () => {
-    window.alert('refreshingvars');
+    console.log("You clicked the magic button! CHAT Ledger and School Vars refreshed.")
+    updateChatLedger(true);
     refreshSchoolVars();
 }
 

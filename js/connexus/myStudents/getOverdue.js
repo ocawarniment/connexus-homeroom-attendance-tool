@@ -87,6 +87,12 @@ function getStudents() {
 
 function scanTable() {
 	storage.get(null, function(result) {
+		// import chatLedger
+		let myStudentsPage = result.chatLedger[result.userSettings.school].myStudentsPage;
+		console.log(myStudentsPage);
+		console.log(myStudentsPage.measures.studentId);
+		console.log(myStudentsPage.measures.overdueLessons);
+
         // get current students
         let homeroomArray = result.students;
 		// print all tbody elements
@@ -99,18 +105,24 @@ function scanTable() {
 		studentCountString = document.getElementsByClassName("sas-student-count ng-binding")[0].innerText;
 		studentCountString = studentCountString.match(/\d+/g)[0];
 		studentCount = studentCountString;
-		
-		// get the OD column
-		let headerColIndex = -1;
+
+		// Get the headers
 		let headerCSS = document.querySelectorAll('[cx-html-compile="column.displayName"]');
 		let headers = [].slice.call(headerCSS);
-		headerColIndex = headers.findIndex(header => {return header.innerText == 'Total Overdue'});
 
-		if(headerColIndex >= 0) {
+		// get the Student ID column
+		let headerColIndex_ID = -1;
+		headerColIndex_ID = headers.findIndex(header => {return header.innerText == myStudentsPage.measures.studentId.header}) + myStudentsPage.measures.studentId.columnOffset;
+		
+		// get the OD column
+		let headerColIndex_overdue = -1;
+		headerColIndex_overdue = headers.findIndex(header => {return header.innerText == myStudentsPage.measures.overdueLessons.header}) + myStudentsPage.measures.overdueLessons.columnOffset;
+
+		if(headerColIndex_ID >= 0) {
 			for(i=0; i<studentRows.length; i++){
 				let studentCells = studentRows[i].querySelectorAll('td');
-				let studentId = studentCells[0].innerText;
-				let overdueLessonsString = studentCells[headerColIndex].innerText;
+				let studentId = studentCells[headerColIndex_ID].innerText;
+				let overdueLessonsString = studentCells[headerColIndex_overdue].innerText;
 				let overdueLessonsMatch = overdueLessonsString.match(/\d+/);
 				let overdueLessons = overdueLessonsMatch !== null ? parseInt(overdueLessonsMatch[0]) : 0;
 				// set OD lessons
@@ -127,54 +139,5 @@ function scanTable() {
 		} else {
 			window.alert('Please enable the Total Overdue column to download student overdue lesson counts. Lessons Behind will be used as the primary Lesson Completion Measure until this column is enabled and the section is redownloaed.');
 		}
-
-		/*
-		// get the overdue column
-		let overdueCol;
-		let overdueFound = false;
-		headers = document.getElementsByClassName("my-students cxForm ng-scope")[0].getElementsByClassName("cxTable ng-scope")[0].getElementsByTagName("thead")[0].getElementsByTagName("th");
-		h = 3;
-		while (h < headers.length) {
-			try {
-				headerText = headers[h].getElementsByTagName("a")[0].getElementsByTagName("span")[0].getElementsByTagName("span")[0].innerText
-				if (headerText == "Overall Score") {
-					overdueCol = h;
-					overdueFound = true;
-				}
-			} catch(err) {}
-			h++;
-		}
-		
-		// if OD column never found close
-		if (headerColIndex > 0) {
-			// adjust for row index
-
-			i = 0;
-			while (i <= studentCount - 1) {
-				
-				bgConsole("table loop");
-				var studentID;
-				studentID = studentRows[i].getElementsByTagName("td")[0].innerText.trim();
-                
-                var studentOverdue;
-				studentOverdue = studentRows[i].getElementsByTagName("td")[overdueCol].innerText;
-				if (studentOverdue.search("lesson") != -1) {studentOverdue = studentOverdue.match(/\d+/g)[0]} else {studentOverdue = 0}
-				homeroomArray['ST' + studentID]['overdue'] = studentOverdue;
-				
-				i++;
-			}
-
-			// alert
-			window.alert(`storring od lessons from column ${h}`);
-			
-			// set the array to access it on the popup
-			storage.set({'students': homeroomArray});
-
-		} else {
-			// try to sort and enable it first
-			alert("Please make sure the 'Total Overdue' column is enabled.");
-			document.getElementsByClassName("column-select-menu collapse")[0].setAttribute('style','height: 352px');
-		}
-		*/
 	});
 }
