@@ -1,4 +1,4 @@
-function updateChatLedger(){
+function updateChatLedger(bypass){
     var timestamp = new Date();
     // github url
     let githubUrl = "https://raw.githubusercontent.com/ocawarniment/ocawarniment.github.io/master/chatLedger.json" + "?timestamp=" + timestamp.toString();
@@ -9,10 +9,10 @@ function updateChatLedger(){
         chrome.storage.local.get(null, result => {
             // check if already up to date
             let currentChatLedger = result.chatLedger;
-            if(newChatLedger.version == currentChatLedger.version) {
+            if(newChatLedger.version == currentChatLedger.version && bypass !== true) {
                 window.alert(`Already up to date at version: ${currentChatLedger.version}.`);
             } else {
-                window.alert(`Updated to new version: ${newChatLedger.version}.`)
+                bypass !== true ? window.alert(`Updated to new version: ${newChatLedger.version}.`) : false;
                 chrome.storage.local.set({chatLedger: data});
                 refreshVersionNumbers();
             }
