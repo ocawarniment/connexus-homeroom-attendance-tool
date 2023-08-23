@@ -11,11 +11,68 @@ var cryptoPass = "oca2018";
 storage.set({'manualDateMode': "FALSE"});
 
 // allow for backup plan?
-var BACKUP_PLAN = true;
+//var BACKUP_PLAN = true;
 
 // temporarily wait until the page has loaded completely
-getStudents();
+//getStudents();
+console.log('starting');
 
+(async () => {
+
+	let studentData = await getStudentsAPI();
+	if(studentData.students.length > 0) {
+		// write to chrome storage
+		storage.get(null, result => {
+			let homeroomArray = result.students;
+			// loop the studentData
+			studentData.students.forEach(student => {
+				// set OD lessons
+				homeroomArray[`ST${student.idWebuser}`]['overdueLessons'] = student.totalOverdueLessons || 0;
+				// overwrite lessonsBehind as lessonCompMetric
+				homeroomArray[`ST${student.idWebuser}`]['lessonCompMetric'] = student.totalOverdueLessons || 0;
+			})
+	
+			// put back to storage
+			storage.set({'students': homeroomArray});
+			console.log('overdue lessons storred via API');
+			window.alert('Section download complete!');
+			window.close();
+		})
+	} else {
+		window.alert('It appears you are not the homeroom teacher on this section and cannot access Overdue Lessons. \n\nLessons Behind will be used as the primary Lesson Completion Measure. This message will continue to popup until this setting is changed on the CHAT Settings page.')
+		window.close()
+	}
+
+})();
+
+// tap into the azure API call with cookies storred on the users machine
+async function getStudentsAPI(){
+	// get the sectionId
+	const regex = /(?<=mystudents\/)\d*/gm;
+	let sectionId = window.location.href.match(regex)[0];
+
+	// get the cookies
+	let cookiesArray = document.cookie.split("; ")
+	  let cookies = {};
+	  cookiesArray.forEach(cookie => {
+		  let keyValue = cookie.split("=");
+		  cookies[keyValue[0]] = keyValue[1]
+	  })
+
+	// set the url
+	let reqUrl = `https://www.connexus.com/api/section/students?idWebuser=${cookies.idWebuserEncrypted}&idSection=${sectionId}&includeInactive=true`;
+	let headers = { "Cookie": document.cookie }
+
+	// send request
+	const response = await fetch(reqUrl, {
+		method: "GET",
+		headers: headers
+	});
+
+	return response.json(); 
+}
+
+/*
 function getStudents() {	
 	var loopCount = 0;
 	bgConsole('attempting...');
@@ -141,3 +198,4 @@ function scanTable() {
 		}
 	});
 }
+*/
