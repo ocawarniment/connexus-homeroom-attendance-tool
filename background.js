@@ -375,6 +375,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })
     }
 
+    // log live lesson
+    if(request.type == 'loglivelesson') {
+        chrome.tabs.create({ url: `${request.logUrl}`, selected: true }, function(tab) {
+            // execute the get work script on the opened tab
+            chrome.tabs.executeScript(tab.id, {
+                file: '/js/connexus/log/logLiveLesson.js',
+                runAt: 'document_end'
+            });
+        });
+        // open the log section page
+        //send message to background with students name array to open log tab and log students
+        //
+        // loop and select the students
+        // provide results alert; highlight those that were missed
+    }
+
     // refresh chatLedger from github
     if(request.type == 'updateChatLedger') {
         (async()=>{
