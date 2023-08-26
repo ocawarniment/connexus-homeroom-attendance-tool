@@ -2,10 +2,92 @@
 var cryptoPass = "oca2018";
 
 chrome.storage.local.get(null, result => {
-    let attendees = result.liveLessonAttendees;
-    attendees = attendees.map(attendee => CryptoJS.AES.decrypt(attendee,cryptoPass).toString(CryptoJS.enc.Utf8)); // decrypt
-    let missingStudents = attendees;
 
+    (async () => {
+        let attendees = result.liveLessonAttendees;
+        attendees = attendees.map(attendee => CryptoJS.AES.decrypt(attendee,cryptoPass).toString(CryptoJS.enc.Utf8)); // decrypt
+        let missingStudents = attendees;
+
+        // check for Add All setting
+        if(document.querySelector('#about_AnySpan').getAttribute('style') == 'display:none;') {
+            window.alert('It appears that you have "All Users Selected" as your default log setting. Please open My Log Settings at the top of this page and switch this to "No Users Selected" in order to use the Log LiveLesson feature.')
+        } else {
+            // get student click selections
+            let studentSelections = document.querySelectorAll('#about_Picker .pickListInlineLink');
+            let clickCount = 0;
+
+            // Loop through student selections
+            studentSelections.forEach(student => {
+                let nameSplit = student.innerText.split(", ");
+                let studentName = `${nameSplit[1]} ${nameSplit[0]}`
+                // if attendees.includes(studentName) => DONT CLICK else CLICK and remove from missingStudents
+                if(attendees.includes(studentName)) {
+                    // click to add
+                    student.click();
+                    clickCount++;
+                    // remove from missingStudents
+                    missingStudents = missingStudents.filter(item => item !== studentName);
+                }
+            })
+
+            // if non clicked end
+            if(clickCount == 0) {
+                window.alert('No student from this section attended the LiveLesson.');
+                return;
+            }
+
+
+
+            await waitForElementToAppear('[src="/images/loading.gif"]', async ()=>{
+                await waitForElementToDisappear('[src="/images/loading.gif"]', async ()=>{// set system type to student
+                    // set system type to student
+                    document.querySelector("#system_systemDropDownList").selectedIndex = 1; //hard coded to get the 1 index which is student
+                    // Create a new 'change' event
+                    var event = new Event('change');
+                    document.querySelector("#system_systemDropDownList").dispatchEvent(event);
+
+                    await waitForElementToAppear('[src="/images/loading.gif"]', async ()=>{
+                        await waitForElementToDisappear('[src="/images/loading.gif"]', ()=>{// set system type to student
+                            // set to LL type
+                            document.querySelector("#idLogEntryContactType_ctl00").selectedIndex = 4; //hard coded to get the 4 index which is LL Group
+
+                            // set date MM/DD/YYYY and time HH:MM AP
+                            let meetingStart = result.liveLessonStart.split(" ");
+                            let meetingDate = meetingStart[0];
+                            let meetingTime = `${meetingStart[1].slice(0, -3)} ${meetingStart[2]}`;
+                            document.querySelector('#enteredTime_dIn').value = meetingTime;
+                            document.querySelector('#entered_dPk_dIn').value = meetingDate;
+
+                            // set areas and cats
+                            // get subject from userSettings
+                            let subject = result.userSettings.liveLessonSubject;
+                            addCategory('Instructional', 'Teaching/Curriculum');
+                            addCategory('Instructional', subject);
+
+                            window.alert(`Unable to select the following students:\n• ${missingStudents.join('\n• ')}`)
+
+                            let aboutPanel = document.querySelector('#aboutPanel');
+                            let missingPanel = aboutPanel.cloneNode(true);
+                            missingPanel.id = 'missingPanel';
+                            missingPanel.children[0].innerText = 'Unable to Select';
+                            missingPanel.children[0].setAttribute('style', 'color: red');
+                            missingPanel.children[2].innerHTML = missingStudents.join(', ');
+                            aboutPanel.parentElement.appendChild(missingPanel);
+                            aboutPanel.after(missingPanel);
+                        });
+                    });
+
+                });
+            });
+        }
+    })();
+    
+
+
+    
+        
+
+    /*
     // pause for 2 seconds then go
     setTimeout(function() {
         // click Remove All
@@ -68,6 +150,7 @@ chrome.storage.local.get(null, result => {
             });
         });
     }, 2000);
+    */
     
 })
 
@@ -88,10 +171,11 @@ function addCategory(groupName, catName) {
 
     groupButton.click()
 
-    // get the category
-    cats.forEach(cat => {
-        if(cat.innerText == catName) {
-            catButton = cat.parentElement.querySelector('.rtUnchecked');
+    // get the subcategories of the group
+    let subCats = groupButton.parentElement.parentElement.querySelectorAll('[role="treeitem"]');
+    subCats.forEach(subCats => {
+        if(subCats.innerText == catName) {
+            catButton = subCats.parentElement.querySelector('.rtUnchecked');
         };
     })
 
@@ -102,20 +186,20 @@ function addCategory(groupName, catName) {
 
 
 // Function to wait for an element to appear
-function waitForElementToAppear(selector, callback) {
+async function waitForElementToAppear(selector, callback) {
     const observer = new MutationObserver((mutationsList, observer) => {
-      const element = document.querySelector(selector);
-      if (element) {
-        callback(element);
-        observer.disconnect();
-      }
+        const element = document.querySelector(selector);
+        if (element) {
+            callback(element);
+            observer.disconnect();
+        }
     });
-  
+
     observer.observe(document.body, { childList: true, subtree: true });
-  }
+}
   
   // Function to wait for an element to disappear
-  function waitForElementToDisappear(selector, callback) {
+async function waitForElementToDisappear(selector, callback) {
     const observer = new MutationObserver((mutationsList, observer) => {
       const element = document.querySelector(selector);
       if (!element) {
@@ -126,6 +210,38 @@ function waitForElementToAppear(selector, callback) {
   
     observer.observe(document.body, { childList: true, subtree: true });
   }
+
+
+
+  // SINGLE FUNCTION
+
+async function waitForElementToShowAndHide(querySelector) {
+    return new Promise((resolve) => {
+      const targetNode = document.querySelector(querySelector);
+  
+      if (!targetNode) {
+        throw new Error(`No element found with selector: ${querySelector}`);
+      }
+  
+      const showObserver = new MutationObserver(() => {
+        const visibilityStyle = window.getComputedStyle(targetNode).getPropertyValue("display");
+        if (visibilityStyle !== "none") {
+          showObserver.disconnect();
+          const hideObserver = new MutationObserver(() => {
+            const newVisibilityStyle = window.getComputedStyle(targetNode).getPropertyValue("display");
+            if (newVisibilityStyle === "none") {
+              hideObserver.disconnect();
+              resolve();
+            }
+          });
+          hideObserver.observe(targetNode, { attributes: true });
+        }
+      });
+  
+      showObserver.observe(targetNode, { attributes: true });
+    });
+  }
+
   
   
 
