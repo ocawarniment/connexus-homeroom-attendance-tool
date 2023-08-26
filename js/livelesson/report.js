@@ -24,7 +24,10 @@ function logLiveLesson(){
     attendees = attendees.map(name => CryptoJS.AES.encrypt(name,cryptoPass));
     console.log(attendees);
 
-    chrome.storage.local.set({liveLessonAttendees: attendees});
+    // attempt to get the start date and time
+    let meetingStart = document.querySelector('span [name="st"]').innerText;
+
+    chrome.storage.local.set({liveLessonAttendees: attendees, liveLessonStart: meetingStart});
 
     let logUrl = `https://www.connexus.com/log/logEntry.aspx?idSection=${id}`;
     //let logUrl = `https://www.connexus.com/log/logEntry.aspx?idWebuser=${id}`

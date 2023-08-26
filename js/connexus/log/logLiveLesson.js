@@ -17,16 +17,25 @@ chrome.storage.local.get(null, result => {
             waitForElementToDisappear('[src="/images/loading.gif"]', () => {
                 // carry out the rest
                 console.log('Element gone');
-
+            
                 // loop students
+                let clickCount = 0;
                 let studentSelections = document.querySelectorAll('#about_Picker .pickListInlineLink');
                 studentSelections.forEach(student => {
                     let nameSplit = student.innerText.split(", ");
                     let studentName = `${nameSplit[1]} ${nameSplit[0]}`
                     // if in attendees click and remove from missing students
-                    if(attendees.includes(studentName)) {
+                    if(attendees.includes(studentName)) {   
                         student.click();
+                        clickCount++;
                         missingStudents = missingStudents.filter(item => item !== studentName);
+                        if(clickCount == 1) {
+                            // WAIT A SEC AND SET STUDENT ONLY AFTER THE FIRST STUDENT IS CLICKED
+                            waitForElementToAppear('#system_systemDropDownList', () => {
+                                document.querySelector("#system_systemDropDownList").selectedIndex = 1; //hard coded to get the 1 index which is student
+                                document.querySelector("#system_systemDropDownList").onchange(); //hard coded to get the 1 index which is student
+                            })
+                        }
                     }
                 })
 
@@ -38,10 +47,19 @@ chrome.storage.local.get(null, result => {
                     document.querySelector("#idLogEntryContactType_ctl00").selectedIndex = 4; //hard coded to get the 4 index which is LL Group
 
                     // set areas and cats
+                    // get subject from userSettings
+                    let subject = result.userSettings.liveLessonSubject;
                     addCategory('Instructional', 'Teaching/Curriculum');
-                    addCategory('Instructional', 'Math');
+                    addCategory('Instructional', subject);
 
-                    window.alert(`Unable to select the following students:\n${missingStudents.join('\n')}`)
+                    // set date MM/DD/YYYY and time HH:MM AP
+                    let meetingStart = result.liveLessonStart.split(" ");
+                    let meetingDate = meetingStart[0];
+                    let meetingTime = `${meetingStart[1]} ${meetingStart[2]}`;
+                    //document.querySelector('#enteredTime_dIn').value = meetingTime;
+                    //document.querySelector('#entered_dPk_dIn').value = meetingDate;
+
+                    window.alert(`Unable to select the following students:\n• ${missingStudents.join('\n• ')}`)
 
                 } else {
                     window.alert('No students from this section attended the LiveLesson.')

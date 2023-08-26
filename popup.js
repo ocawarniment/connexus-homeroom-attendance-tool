@@ -144,6 +144,13 @@ function attachHandlers(){
         saveSettings();
     }
 
+    // attach click listener on subject change to save selection
+
+    document.querySelector('#selectLiveLessonSubject').addEventListener("change", (event) => {
+        console.log('subject changed');
+        saveSettings();
+    });
+
     // attach the click listener to X on settings modal
     document.querySelector('#btn-closeSettings').onclick = () => {
         saveSettings();
@@ -629,6 +636,11 @@ function loadSettingsModal(){
     // set current school as active
     let school = chatData.userSettings.school;
     document.querySelector(`#btnSchool_${school}`).classList.add('active'); 
+
+    // set selected subject
+    let subject = chatData.userSettings.liveLessonSubject;
+    let subjectIndex = document.querySelector(`[subject="${subject}"`)?.getAttribute('index') || 0;
+    document.querySelector('#selectLiveLessonSubject').selectedIndex = subjectIndex;
 }
 
 async function saveSettings(){
@@ -654,6 +666,9 @@ async function saveSettings(){
         })
         // approval window weeks
         userSettings.approvalWindowWeeks = document.querySelector('#inputApprovalWindow').value;
+
+        // ll default
+        userSettings.liveLessonSubject = document.querySelector('#selectLiveLessonSubject').selectedOptions[0].innerText;
 
         // push back to settings
         userSettings.popupTableDisplayFields = popupTableDisplayFields;
