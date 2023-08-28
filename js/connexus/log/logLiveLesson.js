@@ -48,6 +48,10 @@ chrome.storage.local.get(null, result => {
 
                     await waitForElementToAppear('[src="/images/loading.gif"]', async ()=>{
                         await waitForElementToDisappear('[src="/images/loading.gif"]', ()=>{// set system type to student
+                            
+                            let alertMessage = missingStudents.length > 0 ? `Unable to select the following students:\n• ${missingStudents.join('\n• ')}` : `Success! All LiveLesson attendees have been selected for this log entry.`
+                            window.alert(alertMessage);
+                            
                             // set to LL type
                             document.querySelector("#idLogEntryContactType_ctl00").selectedIndex = 4; //hard coded to get the 4 index which is LL Group
 
@@ -62,9 +66,14 @@ chrome.storage.local.get(null, result => {
                             // get subject from userSettings
                             let subject = result.userSettings.liveLessonSubject;
                             addCategory('Instructional', 'Teaching/Curriculum');
-                            addCategory('Instructional', subject);
 
-                            window.alert(`Unable to select the following students:\n• ${missingStudents.join('\n• ')}`)
+                            if(subject == 'None') {
+                                window.alert('No default subject set. Please head over to Settings in the CHAT popup window to select you Default LiveLesson Subject.')
+                            } else {
+                                addCategory('Instructional', subject);
+                            }
+
+                            //window.alert(`Unable to select the following students:\n• ${missingStudents.join('\n• ')}`)
 
                             let aboutPanel = document.querySelector('#aboutPanel');
                             let missingPanel = aboutPanel.cloneNode(true);
@@ -155,6 +164,7 @@ chrome.storage.local.get(null, result => {
 })
 
 function addCategory(groupName, catName) {
+    console.log(`Adding ${groupName} > ${catName}`)
     let groupButton, catButton;
 
     let dropdownButton = document.querySelector('#areaCategoryChooser_pickList_ToggleIcon_img');
