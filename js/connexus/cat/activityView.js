@@ -68,8 +68,10 @@ function checkAutomation(){
 
 			// get the time
 			if(time == 'auto') {
+				////////// THIS IS THE ISSUE; getting the time val live is failing.... //////
 				chrome.runtime.sendMessage({type: 'scrapeValue', url: `https://www.connexus.com/dataview/${dataViewId}?idWebuser=` + studentID, cssSelector: `${elemId}`}, async (response)=>{
-					console.log(response);
+					
+				console.log(`https://www.connexus.com/dataview/${dataViewId}?idWebuser=` + studentID, `${elemId}`, response)
 					const autoString = "auto=check&course=" + course + "&time=" + response;
 					var checkUrl = "https://www.connexus.com/activitytracker/default/weeksummary?idWebuser=" + url.match(/(?<=idWebuser\=)[\d]+/g)[0] + "&startDate=" + startDate + "&endDate=" + endDate + "&" + autoString;
 					// gray out the button

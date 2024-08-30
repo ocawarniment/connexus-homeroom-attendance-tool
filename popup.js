@@ -7,8 +7,18 @@ let bgConsole = {
 loadPopup();
 
 function loadPopup(){
+
     // surface chromestorag vals to the window
     chrome.storage.local.get(null, result => {
+        // if chatLedger is null, get it
+        if(result.chatData == null) {
+            //refreshSchoolVars();
+            //saveSettings();
+
+            // trigger initInstall
+            //chrome.runtime.sendMessage()
+        }
+
         cryptoPass = result.chatLedger.cryptoPass;
         console.log(result);
         window.chatData.students = result.students;

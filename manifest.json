@@ -12,6 +12,20 @@
     "default_popup": "popup.html",
     "default_icon": "/images/icon.png"
   },
+  "content_scripts": [
+	  {
+      "matches": ["https://www.connexus.com/webuser/activity/activity.aspx?idWebuser=*"],
+      "js": ["CryptoJS/aes.js","js/connexus/cat/activityView.js"],
+      "all_frames": true,
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://www.connexus.com/activitytracker/default/weeksummary?idWebuser=*"],
+      "js": ["CryptoJS/aes.js","js/connexus/cat/weekView.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
   "permissions": [
     "webNavigation",
     "downloads",

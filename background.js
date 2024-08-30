@@ -131,10 +131,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 code: `const cssSelector="${request.cssSelector}";`,
                 runAt: 'document_end'
             });*/
-            let fun_css = () => {const cssSelector="${request.cssSelector}";}
+            let func_cteccpCheckVars = (request) => {
+                var approve = request.approve; var dailyHours=request.dailyHours; var adjType=request.adjType; var baseQuery=request.baseQuery;
+            }
+            let fun_css = (request) => { var cssSelector = request.cssSelector; }
             chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 func: fun_css,
+                args: [request]
             });
             /*chrome.tabs.executeScript(tab.id, {
                 file: 'js/services/waitAndScrape.js',
@@ -150,7 +154,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             },(result) => {
                 console.log(result);
                 sendResponse(result[0]);
-                chrome.tabs.remove(tab.id);
+                //chrome.tabs.remove(tab.id);
             });
         })
         return true; // keep connection open for async repionse
@@ -352,7 +356,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
             chrome.scripting.executeScript({
                 target: { tabId: sender.tab.id },
-                ffunc: func_cteccpCheckVars,
+                func: func_cteccpCheckVars,
+                args: [request] 
             });
             // call the function on the the inner frame
             /*chrome.tabs.executeScript(sender.tab.id,{
@@ -383,12 +388,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 frameId: catFrameId,
                 code: 'var approve = ' + request.approve + '; var dailyHours='+request.dailyHours+'; var adjType="'+request.adjType+'"; var baseQuery="'+request.baseQuery+'"'
             }),*/
+
             let func_cteccpCheckVars = (request) => {
+                console.log(request);
                 var approve = request.approve; var dailyHours=request.dailyHours; var adjType=request.adjType; var baseQuery=request.baseQuery;
             }
             chrome.scripting.executeScript({
                 target: { tabId: sender.tab.id },
                 func: func_cteccpCheckVars,
+                args: [request]
             });
             // call the function on the the inner frame
             /*chrome.tabs.executeScript(sender.tab.id,{

@@ -1,3 +1,5 @@
+//checkLoaded();
+
 checkLoaded();
 
 function checkCteCcpTime(){
@@ -143,6 +145,27 @@ function getCatTime(){
     chrome.runtime.sendMessage({type: 'loadCatTime', closeSender: false});
 }
 
+function checkLoaded(retries = 0, maxRetries = 50) {
+    console.log(document.querySelector('table[name="vm.timeGrid"] > tbody'));
+    
+    if (retries >= maxRetries) {
+        console.error('Max retries reached. Element not found.');
+        return;
+    }
+    
+    // check if it's ready
+    if (document.querySelector('.cxPrimaryBtn') === null) {
+        // wait 500 milliseconds and try again
+        setTimeout(() => checkLoaded(retries + 1, maxRetries), 500);
+    } else {
+        window.alert('GOT');
+        getCatTime();
+        checkCteCcpTime();
+    }
+}
+
+
+/*
 function checkLoaded() {
     console.log(document.querySelector('table[name="vm.timeGrid"] > tbody'));
     // check if its ready
@@ -150,10 +173,12 @@ function checkLoaded() {
         // wait 2 seconds and try again
         setTimeout((function(){ checkLoaded(); }), 100);
     } else {
+        window.alert('GOT');
         getCatTime();
         checkCteCcpTime();
     }
 }
+*/
 
 function formatDate(date) {
     return (date.getMonth() + 1) + '/' + date.getDate() + '/' +  date.getFullYear();
