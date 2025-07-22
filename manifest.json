@@ -2,16 +2,20 @@
   "name": "CHAT - Connexus Homeroom Attendance Tool",
   "description": "Web extension to aggregate Connexus data for a section of students.",
   "version": "2.0.1",
-  "manifest_version": 2,
-  "content_security_policy": "script-src 'self'; object-src 'self'; script-src-elem 'self' 'unsafe-inline' https://tagmanager.google.com/ https://www.googletagmanager.com/ https://stackpath.bootstrapcdn.com/ https://code.jquery.com/ https://cdnjs.cloudflare.com/",
-  "background": {
-    "persistent": false,
-	"scripts": ["js/utils/jquery.js","background.js"]
+  "manifest_version": 3,
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
   },
-  "browser_action": {
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
     "default_title": "Connexus Homeroom Attendance Tool",
-	"default_popup": "popup.html",
-	"default_icon": "/images/icon.png"
+    "default_popup": "popup.html",
+    "default_icon": "/images/icon.png"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
 	"content_scripts": [
 	  {
@@ -39,6 +43,11 @@
     "storage",
     "tabs",
     "windows",
+    "scripting",
+    "notifications",
+    "sidePanel"
+  ],
+  "host_permissions": [
     "<all_urls>"
   ]
 }

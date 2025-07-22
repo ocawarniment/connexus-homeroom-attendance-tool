@@ -7,9 +7,16 @@ let bgConsole = {
 loadPopup();
 
 function loadPopup(){
+    // Ensure chatData is initialized
+    if (!window.chatData) {
+        window.chatData = {};
+    }
+    
     // surface chromestorag vals to the window
     chrome.storage.local.get(null, result => {
-        cryptoPass = result.chatLedger.cryptoPass;
+        if (result.chatLedger) {
+            cryptoPass = result.chatLedger.cryptoPass;
+        }
         console.log(result);
         window.chatData.students = result.students;
         window.chatData.userSettings = result.userSettings;
@@ -273,7 +280,7 @@ function approveAttendance(studentID, studentInfo) {
         }
     }
     let url = 'https://www.connexus.com/webuser/activity/activity.aspx?idWebuser=' + studentID + '&startDate=' + startDate + '&endDate=' + endDate + extraInfo;
-    chrome.tabs.create({ url: url, selected: true}, function(tab) { });
+    chrome.tabs.create({ url: url, active: true}, function(tab) { });
 }
 
 function loadApproveButtons(){
@@ -755,13 +762,21 @@ function storeSchoolVars(data){
 
 // store specific school vars in memory - only download when switching schools
 async function refreshSchoolVars(){
-	// pull from github
+	// pull from github - updated to use refs/heads/master
 	var timestamp = new Date();
-	var githubUrl = "https://raw.githubusercontent.com/ocawarniment/ocawarniment.github.io/master/chatLedger.json" + "?timestamp=" + timestamp.toString();
+	var githubUrl = "https://raw.githubusercontent.com/ocawarniment/ocawarniment.github.io/refs/heads/master/chatLedger.json" + "?timestamp=" + timestamp.toString();
 
     fetch(githubUrl)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => storeSchoolVars(data))
+        .catch(error => {
+            console.error('Error refreshing school vars:', error);
+        });
 }
 
 // make the logo a toggle'
@@ -776,4 +791,7 @@ let testStudent = JSON.parse("{\"ST1015991\":{\"attendanceMetric\":\"1\",\"atten
   */
 
 
-dataLayer.push({'event':'popup-js-loaded'});
+// Check if dataLayer exists before pushing
+if (typeof dataLayer !== 'undefined') {
+    dataLayer.push({'event':'popup-js-loaded'});
+}
