@@ -51,17 +51,133 @@ body {
 .download-card {
   background: white;
   border-radius: 8px;
-  padding: 20px;
   margin-bottom: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border: 1px solid #e9ecef;
 }
 
+.download-card.interactive {
+  padding: 12px 16px;
+}
+
 .download-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
+
+/* Interactive Compact Layout */
+.form-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.form-group-compact {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-input-compact {
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.form-input-compact:focus {
+  outline: none;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.15rem rgba(0, 123, 255, 0.25);
+}
+
+.section-input {
+  width: 100px;
+  font-weight: 500;
+}
+
+.date-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.date-input {
+  width: 90px;
+}
+
+.date-separator {
+  color: #6c757d;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+/* Mode Toggle Button */
+.mode-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  font-size: 14px;
+}
+
+.mode-toggle-btn.auto {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  color: #1976d2;
+}
+
+.mode-toggle-btn.manual {
+  background: #fff3e0;
+  border-color: #ff9800;
+  color: #f57c00;
+  cursor: pointer;
+}
+
+.mode-toggle-btn.manual:hover {
+  background: #ffe0b2;
+}
+
+.mode-toggle-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Download Button */
+.download-btn-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.btn-text {
+  font-weight: 500;
+}
+
+/* Last Sync Row */
+.last-sync-row {
+  font-size: 10px;
+  color: #6c757d;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+
+
+
 
 .form-group {
   display: flex;
@@ -477,6 +593,26 @@ body {
   .date-range {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .form-row-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .form-group-compact {
+    justify-content: center;
+  }
+
+  .section-input,
+  .date-input {
+    width: 100%;
+  }
+
+  .download-btn-main {
+    margin-left: 0;
+    justify-content: center;
   }
 }
 

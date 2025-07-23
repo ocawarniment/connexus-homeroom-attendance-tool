@@ -1,17 +1,37 @@
 import React, { useState } from 'react';
-import StudentDropdown from './StudentDropdown';
+import {
+  TableRow,
+  TableCell,
+  Button,
+  IconButton,
+  Tooltip,
+  Chip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Avatar,
+  Box,
+  Typography
+} from '@mui/material';
+import {
+  CheckCircle as ApproveIcon,
+  Info as InfoIcon,
+  MoreVert as MoreIcon,
+  Person as PersonIcon,
+  Launch as LaunchIcon
+} from '@mui/icons-material';
 
-const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedger, onApprove }) => {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedger, onApprove, index }) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const menuOpen = Boolean(anchorEl);
 
   const decryptName = (encryptedName) => {
     try {
-      // Check if CryptoJS is available and we have a crypto pass
       if (typeof CryptoJS !== 'undefined' && window.cryptoPass && encryptedName) {
         const decrypted = CryptoJS.AES.decrypt(encryptedName, window.cryptoPass).toString(CryptoJS.enc.Utf8);
         return decrypted || 'Student Name';
       }
-      // Fallback to encrypted name or placeholder
       return typeof encryptedName === 'string' ? encryptedName : 'Student Name';
     } catch (error) {
       console.error('Error decrypting name:', error);
@@ -20,11 +40,9 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
   };
 
   const getStudentOutcome = (student, ledger) => {
-    // This would implement the algorithm logic from the original popup.js
-    // For now, return a default outcome
     return [{
       state: 'approve',
-      color: '#28a745',
+      color: 'success',
       suggestion: 'Student is on track',
       summary: 'All requirements met'
     }];
@@ -36,17 +54,15 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
     }
     
     if (field.field === 'approveButton') {
-      return null; // Handled separately
+      return null;
     }
     
     const value = student[field.field];
     
-    // Ensure we return a string or number, not an object
     if (value == null || value === undefined) {
       return 'N/A';
     }
     
-    // If it's an object, convert to string or return N/A
     if (typeof value === 'object') {
       return 'N/A';
     }
@@ -54,79 +70,172 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
     return String(value);
   };
 
-  const renderApproveButton = () => {
-    const studentOutcome = getStudentOutcome(student, chatLedger?.[userSettings?.school]);
-    const outcome = studentOutcome[0] || { state: 'approve', color: '#28a745' };
-    
-    const handleApprove = () => {
-      const studentInfo = {
-        cte: student.cteHours || 'false',
-        ccp: student.ccpHours || 'false'
-      };
-      onApprove(studentId.replace('ST', ''), studentInfo);
+  const handleMenuClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleApprove = () => {
+    const studentInfo = {
+      cte: student.cteHours || 'false',
+      ccp: student.ccpHours || 'false'
     };
-
-    const isComplete = student.complete;
-
-    return (
-      <div className="student-actions">
-        <button
-          className={`approve-btn ${outcome.state}`}
-          style={{ 
-            backgroundColor: outcome.color,
-            textDecoration: isComplete ? 'line-through' : 'none'
-          }}
-          onClick={handleApprove}
-          title={outcome.suggestion}
-        >
-          {outcome.state.toUpperCase()}
-        </button>
-        <div className="tooltip">
-          <button className="info-btn">ⓘ</button>
-          <span className="tooltiptext">
-            {outcome.suggestion}
-            {outcome.summary && (
-              <>
-                <br /><br />
-                {outcome.summary}
-              </>
-            )}
-          </span>
-        </div>
-      </div>
-    );
+    onApprove(studentId.replace('ST', ''), studentInfo);
   };
 
   const renderCell = (field) => {
     if (field.field === 'name') {
+      const studentName = decryptName(student[field.field]);
       return (
-        <StudentDropdown
-          studentId={studentId}
-          studentName={decryptName(student[field.field])}
-          student={student}
-          chatLedger={chatLedger}
-          userSettings={userSettings}
-          isOpen={dropdownOpen}
-          onToggle={() => setDropdownOpen(!dropdownOpen)}
-        />
+        <Box display="flex" alignItems="center" gap={0.5}>
+          <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
+            {studentName}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={handleMenuClick}
+            sx={{ p: 0.25, ml: 0.5 }}
+          >
+            <MoreIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Box>
       );
     }
     
     if (field.field === 'approveButton') {
-      return renderApproveButton();
+      const studentOutcome = getStudentOutcome(student, chatLedger?.[userSettings?.school]);
+      const outcome = studentOutcome[0] || { state: 'approve', color: 'success' };
+      const isComplete = student.complete;
+
+      return (
+        <Box display="flex" alignItems="center" gap={0.5}>
+          <Button
+            variant="contained"
+            size="small"
+            color={outcome.color}
+            startIcon={<ApproveIcon sx={{ fontSize: 14 }} />}
+            onClick={handleApprove}
+            sx={{
+              textDecoration: isComplete ? 'line-through' : 'none',
+              minWidth: 80,
+              fontSize: '0.7rem',
+              py: 0.25,
+              px: 0.5
+            }}
+          >
+            {outcome.state.toUpperCase()}
+          </Button>
+          <Tooltip title={`${outcome.suggestion}\n\n${outcome.summary}`} arrow>
+            <IconButton size="small" sx={{ p: 0.25 }}>
+              <InfoIcon sx={{ fontSize: 12 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      );
     }
     
-    return getCellValue(field, student);
+    const cellValue = getCellValue(field, student);
+    
+    // Special formatting for certain fields
+    if (field.field === 'attendanceStatus') {
+      const color = cellValue === 'Good' ? 'success' : cellValue === 'Warning' ? 'warning' : 'error';
+      return (
+        <Chip 
+          label={cellValue} 
+          size="small" 
+          color={color}
+          variant="outlined"
+          sx={{ fontSize: '0.65rem', height: 20 }}
+        />
+      );
+    }
+    
+    return (
+      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+        {cellValue}
+      </Typography>
+    );
   };
 
+  const studentLinks = chatLedger?.studentLinks || [];
+
   return (
-    <tr id={`tr-${studentId}`}>
-      {displayFields.map(field => (
-        <td key={field.field} className={`td-${field.field}`}>
-          {renderCell(field)}
-        </td>
-      ))}
-    </tr>
+    <>
+      <TableRow 
+        hover
+        sx={{ 
+          '&:nth-of-type(odd)': { backgroundColor: 'action.hover' },
+          '&:hover': { backgroundColor: 'action.selected' },
+          height: 32
+        }}
+      >
+        {displayFields.map(field => (
+          <TableCell key={field.field} sx={{ py: 0.25, px: 0.5, fontSize: '0.75rem' }}>
+            {renderCell(field)}
+          </TableCell>
+        ))}
+      </TableRow>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={menuOpen}
+        onClose={handleMenuClose}
+        PaperProps={{
+          elevation: 3,
+          sx: { minWidth: 200 }
+        }}
+      >
+        {studentLinks.map((link, index) => (
+          <MenuItem 
+            key={index}
+            onClick={() => {
+              // Format href with student data
+              let formattedHref = link.href;
+              const placeholderRegex = /\{\{([^\}]*)\}\}/g;
+              const placeholders = link.href.match(placeholderRegex) || [];
+              
+              placeholders.forEach(placeholder => {
+                const fieldRegex = /(?<=\{\{)(.*?)(?=\}\})/g;
+                const fieldName = placeholder.match(fieldRegex)?.[0];
+                
+                if (!fieldName) return;
+                
+                if (fieldName.charAt(0) === '_') {
+                  const schoolFieldName = fieldName.substring(1);
+                  const fieldTreeItems = schoolFieldName.split('.');
+                  const schoolVars = chatLedger?.[userSettings?.school];
+                  
+                  let output = schoolVars;
+                  fieldTreeItems.forEach(branch => {
+                    output = output?.[branch];
+                  });
+                  
+                  if (output) {
+                    formattedHref = formattedHref.replace(placeholder, output);
+                  }
+                } else {
+                  const studentValue = student[fieldName];
+                  if (studentValue) {
+                    formattedHref = formattedHref.replace(placeholder, studentValue);
+                  }
+                }
+              });
+              
+              window.open(formattedHref, '_blank');
+              handleMenuClose();
+            }}
+          >
+            <ListItemIcon>
+              <LaunchIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary={link.title} />
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
   );
 };
 

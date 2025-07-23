@@ -1,4 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  Chip,
+  Box,
+  Typography,
+  IconButton,
+  Tooltip,
+  CircularProgress,
+  Stack,
+  Divider
+} from '@mui/material';
+import {
+  Download as DownloadIcon,
+  CalendarToday as CalendarIcon,
+  Refresh as RefreshIcon,
+  Schedule as ScheduleIcon
+} from '@mui/icons-material';
 
 const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
   const [sectionId, setSectionId] = useState('');
@@ -85,70 +105,172 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
   const windowWeeks = userSettings?.approvalWindowWeeks || 2;
 
   return (
-    <div className="download-card">
-      <div className="download-form">
-        <div className="form-group">
-          <label className="form-label" htmlFor="sectionId">Section ID</label>
-          <input
-            id="sectionId"
-            type="text"
-            className="form-input"
-            value={sectionId}
-            onChange={(e) => setSectionId(e.target.value)}
-            placeholder="Enter section ID"
-          />
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">Date Range</label>
-          <div className="date-range">
-            <input
+    <Card 
+      elevation={1} 
+      sx={{ 
+        mb: 1,
+        borderRadius: 1,
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white'
+      }}
+    >
+      <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+        <Stack spacing={1}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+            <TextField
+              label="Section ID"
+              value={sectionId}
+              onChange={(e) => setSectionId(e.target.value)}
+              size="small"
+              sx={{ 
+                minWidth: 80,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  height: 32,
+                  fontSize: '0.75rem',
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                  '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                  '&.Mui-focused fieldset': { borderColor: 'white' }
+                },
+                '& .MuiInputLabel-root': { 
+                  color: 'rgba(0, 0, 0, 0.6)',
+                  fontSize: '0.75rem',
+                  transform: 'translate(8px, 8px) scale(1)'
+                },
+                '& .MuiInputLabel-shrink': {
+                  transform: 'translate(8px, -6px) scale(0.75)'
+                }
+              }}
+            />
+            
+            <TextField
               type="date"
-              className="form-input"
+              label="Start"
               value={startDate}
               onChange={(e) => handleDateChange('startDate', e.target.value)}
+              size="small"
+              InputLabelProps={{ shrink: true }}
+              sx={{ 
+                minWidth: 100,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  height: 32,
+                  fontSize: '0.75rem',
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                  '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                  '&.Mui-focused fieldset': { borderColor: 'white' }
+                },
+                '& .MuiInputLabel-root': { 
+                  color: 'rgba(0, 0, 0, 0.6)',
+                  fontSize: '0.75rem'
+                }
+              }}
             />
-            <span>to</span>
-            <input
+            
+            <TextField
               type="date"
-              className="form-input"
+              label="End"
               value={endDate}
               onChange={(e) => handleDateChange('endDate', e.target.value)}
+              size="small"
+              InputLabelProps={{ shrink: true }}
+              sx={{ 
+                minWidth: 100,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  height: 32,
+                  fontSize: '0.75rem',
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                  '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                  '&.Mui-focused fieldset': { borderColor: 'white' }
+                },
+                '& .MuiInputLabel-root': { 
+                  color: 'rgba(0, 0, 0, 0.6)',
+                  fontSize: '0.75rem'
+                }
+              }}
             />
-          </div>
-        </div>
 
-        <button
-          className="btn btn-primary"
-          onClick={handleDownload}
-          disabled={isDownloading}
-        >
-          {isDownloading ? (
-            <>
-              <div className="spinner"></div>
-              Downloading...
-            </>
-          ) : (
-            'Download Section'
-          )}
-        </button>
+            <Tooltip title={manualDateMode ? 'Switch to Auto Mode' : `Auto Mode (${windowWeeks} weeks)`}>
+              <IconButton
+                size="small"
+                onClick={manualDateMode ? switchToAutoMode : undefined}
+                disabled={!manualDateMode}
+                sx={{
+                  width: 28,
+                  height: 28,
+                  backgroundColor: manualDateMode ? 'rgba(255, 152, 0, 0.2)' : 'rgba(33, 150, 243, 0.2)',
+                  color: manualDateMode ? '#ff9800' : '#2196f3',
+                  border: `1px solid ${manualDateMode ? '#ff9800' : '#2196f3'}`,
+                  '&:hover': {
+                    backgroundColor: manualDateMode ? 'rgba(255, 152, 0, 0.3)' : 'rgba(33, 150, 243, 0.3)',
+                  },
+                  '&:disabled': {
+                    opacity: 0.7,
+                    color: '#2196f3',
+                    borderColor: '#2196f3'
+                  }
+                }}
+              >
+                {manualDateMode ? <CalendarIcon sx={{ fontSize: 16 }} /> : <RefreshIcon sx={{ fontSize: 16 }} />}
+              </IconButton>
+            </Tooltip>
 
-        <div 
-          className={`date-banner ${manualDateMode ? 'manual' : 'auto'}`}
-          onClick={manualDateMode ? switchToAutoMode : undefined}
-          style={{ cursor: manualDateMode ? 'pointer' : 'default' }}
-        >
-          {manualDateMode 
-            ? 'Manual Date Mode - Click HERE to switch back to automatic.'
-            : `Auto Date Mode - ${windowWeeks} Week Approval Window`
-          }
-        </div>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={isDownloading ? <CircularProgress size={12} color="inherit" /> : <DownloadIcon sx={{ fontSize: 16 }} />}
+              onClick={handleDownload}
+              disabled={isDownloading || !sectionId}
+              sx={{
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                fontSize: '0.75rem',
+                py: 0.5,
+                px: 1,
+                minHeight: 28,
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                },
+                '&:disabled': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  color: 'rgba(255, 255, 255, 0.5)'
+                },
+                ml: 'auto'
+              }}
+            >
+              {isDownloading ? 'Downloading...' : 'Download'}
+            </Button>
+          </Stack>
 
-        <div className="last-sync">
-          Last Sync: {getLastSyncDisplay()}
-        </div>
-      </div>
-    </div>
+          <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <ScheduleIcon sx={{ fontSize: 12, opacity: 0.8 }} />
+              <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.65rem' }}>
+                Last Sync: {getLastSyncDisplay()}
+              </Typography>
+            </Box>
+            
+            <Chip
+              icon={manualDateMode ? <CalendarIcon sx={{ fontSize: 12 }} /> : <RefreshIcon sx={{ fontSize: 12 }} />}
+              label={manualDateMode ? 'Manual' : `Auto (${windowWeeks}w)`}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: '0.65rem',
+                backgroundColor: manualDateMode ? 'rgba(255, 152, 0, 0.2)' : 'rgba(33, 150, 243, 0.2)',
+                color: manualDateMode ? '#ff9800' : '#2196f3',
+                border: `1px solid ${manualDateMode ? 'rgba(255, 152, 0, 0.5)' : 'rgba(33, 150, 243, 0.5)'}`,
+                '& .MuiChip-icon': {
+                  color: manualDateMode ? '#ff9800' : '#2196f3'
+                }
+              }}
+            />
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 };
 

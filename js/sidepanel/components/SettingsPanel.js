@@ -1,4 +1,39 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Drawer,
+  Box,
+  Typography,
+  IconButton,
+  Divider,
+  Card,
+  CardContent,
+  Button,
+  TextField,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
+  ToggleButton,
+  ToggleButtonGroup,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Chip,
+  Stack,
+  Link,
+  Avatar
+} from '@mui/material';
+import {
+  Close as CloseIcon,
+  Info as InfoIcon,
+  School as SchoolIcon,
+  Update as UpdateIcon,
+  Settings as SettingsIcon,
+  Description as DocumentIcon,
+  CalendarToday as CalendarIcon,
+  ViewColumn as ColumnIcon,
+  Subject as SubjectIcon
+} from '@mui/icons-material';
 
 const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSettings, onRefreshData }) => {
   const [settings, setSettings] = useState({});
@@ -161,183 +196,300 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
   const selectedFields = Array.isArray(settings.popupTableDisplayFields) ? settings.popupTableDisplayFields : [];
 
   return (
-    <div className={`settings-panel ${isOpen ? 'open' : ''}`}>
-      <div className="settings-header">
-        <h2 className="settings-title">Settings</h2>
-        <button className="close-btn" onClick={onClose} aria-label="Close Settings">
-          ×
-        </button>
-      </div>
-      
-      <div className="settings-content">
-        {/* About Section */}
-        <div className="settings-section">
-          <h3 className="settings-section-title">About</h3>
-          <div style={{ marginBottom: '12px' }}>
-            <span>Extension Version: </span>
-            <span id="extVersNum">{extensionVersion}</span>
-            <a 
-              href={chatLedger?.extensionDownloadUrl || '#'} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              style={{ marginLeft: '12px' }}
-            >
-              <button className="btn btn-outline">Update</button>
-            </a>
-          </div>
-          <div style={{ marginBottom: '12px' }}>
-            <span>CHAT Ledger Version: </span>
-            <span id="chatVersNum">{chatLedgerVersion}</span>
-            <button 
-              className="btn btn-outline" 
-              onClick={updateChatLedger}
-              style={{ marginLeft: '12px' }}
-            >
-              Update
-            </button>
-          </div>
-        </div>
+    <Drawer
+      anchor="right"
+      open={isOpen}
+      onClose={onClose}
+      PaperProps={{
+        sx: { 
+          width: 300,
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+        }
+      }}
+    >
+      <Box sx={{ p: 1.5, height: '100%', overflow: 'auto' }}>
+        {/* Header */}
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
+          <Box display="flex" alignItems="center" gap={0.5}>
+            <SettingsIcon color="primary" sx={{ fontSize: 18 }} />
+            <Typography variant="subtitle1" fontWeight={600} sx={{ fontSize: '0.9rem' }}>
+              Settings
+            </Typography>
+          </Box>
+          <IconButton onClick={onClose} size="small" sx={{ p: 0.5 }}>
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
 
-        {/* Reference Manual */}
-        <div className="settings-section">
-          <h3 className="settings-section-title">Reference Manual</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src="/images/google_docs_logo.png" width="24" height="24" alt="Google Docs" />
-            <a 
-              href="https://docs.google.com/document/d/1DL0lgLSLl7N3Rut7me5ucpvEM8-I-Vgdz587ZmleN_U/edit#heading=h.c818bjawl1ng" 
-              target="_blank" 
-              rel="noopener noreferrer"
-            >
-              Frequently Asked Questions
-            </a>
-          </div>
-        </div>
-
-        {/* School Selection */}
-        <div className="settings-section">
-          <h3 className="settings-section-title">School</h3>
-          <div className="btn-group">
-            <button
-              className={`btn ${settings.school === 'oca' ? 'active' : 'btn-outline'}`}
-              onClick={() => handleSchoolChange('oca')}
-            >
-              OCA
-            </button>
-            <button
-              className={`btn ${settings.school === 'grca' ? 'active' : 'btn-outline'}`}
-              onClick={() => handleSchoolChange('grca')}
-            >
-              GRCA
-            </button>
-          </div>
-        </div>
-
-        {/* Approval Window */}
-        <div className="settings-section">
-          <h3 className="settings-section-title">Number of Weeks in Approval Window</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <input 
-              type="text" 
-              value={approvalWindow} 
-              readOnly 
-              className="form-input"
-              style={{ width: '60px', textAlign: 'center' }}
-            />
-            <button 
-              className="btn btn-outline"
-              onClick={() => handleApprovalWindowChange(-1)}
-            >
-              ⇩
-            </button>
-            <button 
-              className="btn btn-outline"
-              onClick={() => handleApprovalWindowChange(1)}
-            >
-              ⇧
-            </button>
-          </div>
-        </div>
-
-        {/* Table Fields */}
-        <div className="settings-section">
-          <h3 className="settings-section-title">Table Fields</h3>
-          <div className="btn-group" style={{ marginBottom: '12px' }}>
-            <button className="btn btn-outline" onClick={handleSelectAllFields}>
-              Select All
-            </button>
-            <button className="btn btn-outline" onClick={handleDeselectAllFields}>
-              Deselect All
-            </button>
-          </div>
-          <div className="checkbox-group">
-            {displayFields.map(field => {
-              const isRequired = ['id', 'name', 'approveButton'].includes(field.field);
-              const isChecked = selectedFields.includes(field.field) || isRequired;
+        <Stack spacing={1.5}>
+          {/* About Section */}
+          <Card elevation={1}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <InfoIcon color="primary" sx={{ fontSize: 16 }} />
+                <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                  About
+                </Typography>
+              </Box>
               
-              return (
-                <div key={field.field} className="checkbox-item">
-                  <input
-                    type="checkbox"
-                    id={`cb_${field.field}`}
-                    checked={isChecked}
-                    disabled={isRequired}
-                    onChange={(e) => handleTableFieldChange(field.field, e.target.checked)}
-                  />
-                  <label 
-                    htmlFor={`cb_${field.field}`}
-                    title={field.hovertext || ''}
+              <Stack spacing={1}>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                    Extension: <strong>{extensionVersion}</strong>
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<UpdateIcon sx={{ fontSize: 14 }} />}
+                    href={chatLedger?.extensionDownloadUrl || '#'}
+                    target="_blank"
+                    sx={{ py: 0.25, px: 0.75, fontSize: '0.7rem', minWidth: 'auto' }}
                   >
-                    {field.displayName}
-                  </label>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                    Update
+                  </Button>
+                </Box>
+                
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                    CHAT Ledger: <strong>{chatLedgerVersion}</strong>
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<UpdateIcon sx={{ fontSize: 14 }} />}
+                    onClick={updateChatLedger}
+                    sx={{ py: 0.25, px: 0.75, fontSize: '0.7rem', minWidth: 'auto' }}
+                  >
+                    Update
+                  </Button>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
 
-        {/* Lesson Completion Measure (OCA Only) */}
-        {settings.school === 'oca' && (
-          <div className="settings-section">
-            <h3 className="settings-section-title">Lesson Completion Measure (OCA Only)</h3>
-            <p style={{ fontSize: '13px', marginBottom: '12px', color: '#6c757d' }}>
-              Attendance guidance calculations and button color coding will be based on the selected lesson completion measure.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button
-                className={`btn ${settings.completionMetric === 'behind' ? 'active' : 'btn-outline'}`}
-                onClick={() => handleCompletionMetricChange('behind')}
+          {/* Reference Manual */}
+          <Card elevation={1}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <DocumentIcon color="primary" sx={{ fontSize: 16 }} />
+                <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                  Reference Manual
+                </Typography>
+              </Box>
+              
+              <Link
+                href="https://docs.google.com/document/d/1DL0lgLSLl7N3Rut7me5ucpvEM8-I-Vgdz587ZmleN_U/edit#heading=h.c818bjawl1ng"
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ display: 'flex', alignItems: 'center', gap: 0.5, textDecoration: 'none' }}
               >
-                Lessons Behind
-              </button>
-              <button
-                className={`btn ${settings.completionMetric === 'overdue' ? 'active' : 'btn-outline'}`}
-                onClick={() => handleCompletionMetricChange('overdue')}
-              >
-                Overdue Lessons
-              </button>
-            </div>
-          </div>
-        )}
+                <DocumentIcon sx={{ fontSize: 14, color: 'primary.main' }} />
+                <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                  Frequently Asked Questions
+                </Typography>
+              </Link>
+            </CardContent>
+          </Card>
 
-        {/* LiveLesson Default Subject */}
-        <div className="settings-section">
-          <h3 className="settings-section-title">LiveLesson Default Subject</h3>
-          <select 
-            className="form-input"
-            value={settings.liveLessonSubject || 'None'}
-            onChange={(e) => handleSubjectChange(e.target.value)}
-          >
-            <option value="None">None</option>
-            <option value="Math">Math</option>
-            <option value="Language Arts">Language Arts</option>
-            <option value="Science">Science</option>
-            <option value="Behavior">Behavior</option>
-            <option value="Social Studies">Social Studies</option>
-            <option value="Other Course">Other Course</option>
-          </select>
-        </div>
-      </div>
-    </div>
+          {/* School Selection */}
+          <Card elevation={1}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <SchoolIcon color="primary" sx={{ fontSize: 16 }} />
+                <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                  School
+                </Typography>
+              </Box>
+              
+              <ToggleButtonGroup
+                value={settings.school}
+                exclusive
+                onChange={(e, value) => value && handleSchoolChange(value)}
+                fullWidth
+                size="small"
+                sx={{ '& .MuiToggleButton-root': { py: 0.25, fontSize: '0.75rem' } }}
+              >
+                <ToggleButton value="oca">OCA</ToggleButton>
+                <ToggleButton value="grca">GRCA</ToggleButton>
+              </ToggleButtonGroup>
+            </CardContent>
+          </Card>
+
+          {/* Approval Window */}
+          <Card elevation={1}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <CalendarIcon color="primary" sx={{ fontSize: 16 }} />
+                <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                  Approval Window
+                </Typography>
+              </Box>
+              
+              <Box display="flex" alignItems="center" gap={0.5}>
+                <TextField
+                  value={approvalWindow}
+                  size="small"
+                  InputProps={{ 
+                    readOnly: true,
+                    sx: { height: 28, fontSize: '0.75rem' }
+                  }}
+                  sx={{ width: 60 }}
+                />
+                <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>weeks</Typography>
+                <Box ml="auto">
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleApprovalWindowChange(-1)}
+                    disabled={approvalWindow <= 1}
+                    sx={{ p: 0.25 }}
+                  >
+                    ⇩
+                  </IconButton>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleApprovalWindowChange(1)}
+                    disabled={approvalWindow >= 4}
+                    sx={{ p: 0.25 }}
+                  >
+                    ⇧
+                  </IconButton>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+
+          {/* Table Fields */}
+          <Card elevation={1}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <ColumnIcon color="primary" sx={{ fontSize: 16 }} />
+                <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                  Table Fields
+                </Typography>
+              </Box>
+              
+              <Stack spacing={1}>
+                <Box display="flex" gap={0.5}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={handleSelectAllFields}
+                    fullWidth
+                    sx={{ py: 0.25, fontSize: '0.7rem' }}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={handleDeselectAllFields}
+                    fullWidth
+                    sx={{ py: 0.25, fontSize: '0.7rem' }}
+                  >
+                    Deselect All
+                  </Button>
+                </Box>
+                
+                <FormGroup>
+                  {displayFields.map(field => {
+                    const isRequired = ['id', 'name', 'approveButton'].includes(field.field);
+                    const isChecked = selectedFields.includes(field.field) || isRequired;
+                    
+                    return (
+                      <FormControlLabel
+                        key={field.field}
+                        control={
+                          <Checkbox
+                            checked={isChecked}
+                            disabled={isRequired}
+                            onChange={(e) => handleTableFieldChange(field.field, e.target.checked)}
+                            size="small"
+                            sx={{ p: 0.25 }}
+                          />
+                        }
+                        label={
+                          <Typography variant="body2" title={field.hovertext || ''} sx={{ fontSize: '0.75rem' }}>
+                            {field.displayName}
+                          </Typography>
+                        }
+                        sx={{ my: 0 }}
+                      />
+                    );
+                  })}
+                </FormGroup>
+              </Stack>
+            </CardContent>
+          </Card>
+
+          {/* Lesson Completion Measure (OCA Only) */}
+          {settings.school === 'oca' && (
+            <Card elevation={1}>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                  <CalendarIcon color="primary" sx={{ fontSize: 16 }} />
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                    Lesson Completion Measure
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" mb={1} sx={{ fontSize: '0.7rem' }}>
+                  Attendance guidance calculations and button color coding will be based on the selected measure.
+                </Typography>
+                
+                <ToggleButtonGroup
+                  value={settings.completionMetric}
+                  exclusive
+                  onChange={(e, value) => value && handleCompletionMetricChange(value)}
+                  orientation="vertical"
+                  fullWidth
+                  size="small"
+                  sx={{ '& .MuiToggleButton-root': { py: 0.25, fontSize: '0.75rem' } }}
+                >
+                  <ToggleButton value="behind">Lessons Behind</ToggleButton>
+                  <ToggleButton value="overdue">Overdue Lessons</ToggleButton>
+                </ToggleButtonGroup>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* LiveLesson Default Subject */}
+          <Card elevation={1}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                <SubjectIcon color="primary" sx={{ fontSize: 16 }} />
+                <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                  LiveLesson Default Subject
+                </Typography>
+              </Box>
+              
+              <FormControl fullWidth size="small">
+                <InputLabel sx={{ fontSize: '0.75rem' }}>Subject</InputLabel>
+                <Select
+                  value={settings.liveLessonSubject || 'None'}
+                  label="Subject"
+                  onChange={(e) => handleSubjectChange(e.target.value)}
+                  sx={{ 
+                    height: 32,
+                    fontSize: '0.75rem',
+                    '& .MuiSelect-select': { 
+                      paddingTop: '4px',
+                      paddingBottom: '4px'
+                    }
+                  }}
+                >
+                  <MenuItem value="None" sx={{ fontSize: '0.75rem' }}>None</MenuItem>
+                  <MenuItem value="Math" sx={{ fontSize: '0.75rem' }}>Math</MenuItem>
+                  <MenuItem value="Language Arts" sx={{ fontSize: '0.75rem' }}>Language Arts</MenuItem>
+                  <MenuItem value="Science" sx={{ fontSize: '0.75rem' }}>Science</MenuItem>
+                  <MenuItem value="Behavior" sx={{ fontSize: '0.75rem' }}>Behavior</MenuItem>
+                  <MenuItem value="Social Studies" sx={{ fontSize: '0.75rem' }}>Social Studies</MenuItem>
+                  <MenuItem value="Other Course" sx={{ fontSize: '0.75rem' }}>Other Course</MenuItem>
+                </Select>
+              </FormControl>
+            </CardContent>
+          </Card>
+        </Stack>
+      </Box>
+    </Drawer>
   );
 };
 
