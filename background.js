@@ -1,6 +1,7 @@
-// load into window
+// Initialize chatLedger variable for service worker
+let chatLedger = null;
 chrome.storage.local.get(null, result => {
-    window.chatLedger = result.chatLedger;
+    chatLedger = result.chatLedger;
 })
 
 chrome.runtime.onInstalled.addListener(function(details){
@@ -879,3 +880,23 @@ function setDebugStudents(){
         chrome.storage.local.set({students: students});
     })
 }
+// Set the side panel to open when the extension icon is clicked
+chrome.runtime.onStartup.addListener(() => {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+        .catch((error) => console.error('Error setting panel behavior:', error));
+});
+
+// Also set on install/update
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+        .catch((error) => console.error('Error setting panel behavior:', error));
+});
+
+// Handle direct action clicks as fallback
+chrome.action.onClicked.addListener(async (tab) => {
+    try {
+        await chrome.sidePanel.open({ tabId: tab.id });
+    } catch (error) {
+        console.error('Error opening sidepanel:', error);
+    }
+});

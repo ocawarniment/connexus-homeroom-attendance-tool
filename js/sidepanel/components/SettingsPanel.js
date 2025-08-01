@@ -32,7 +32,9 @@ import {
   Description as DocumentIcon,
   CalendarToday as CalendarIcon,
   ViewColumn as ColumnIcon,
-  Subject as SubjectIcon
+  Subject as SubjectIcon,
+  KeyboardArrowUp as ArrowUpIcon,
+  KeyboardArrowDown as ArrowDownIcon
 } from '@mui/icons-material';
 
 const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSettings, onRefreshData }) => {
@@ -40,11 +42,14 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
   const [approvalWindow, setApprovalWindow] = useState(2);
   const [extensionVersion, setExtensionVersion] = useState('2.0.1');
   const [chatLedgerVersion, setChatLedgerVersion] = useState('Loading...');
+  const [developerModeClickCount, setDeveloperModeClickCount] = useState(0);
+  const [isDeveloperMode, setIsDeveloperMode] = useState(false);
 
   useEffect(() => {
     if (userSettings) {
       setSettings(userSettings);
       setApprovalWindow(userSettings.approvalWindowWeeks || 2);
+      setIsDeveloperMode(userSettings.developerMode || false);
     }
   }, [userSettings]);
 
@@ -144,6 +149,32 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
     onUpdateSettings(newSettings);
   };
 
+  const handleAboutIconClick = () => {
+    const newCount = developerModeClickCount + 1;
+    setDeveloperModeClickCount(newCount);
+    
+    if (newCount >= 10) {
+      setIsDeveloperMode(true);
+      const newSettings = { ...settings, developerMode: true };
+      setSettings(newSettings);
+      onUpdateSettings(newSettings);
+      setDeveloperModeClickCount(0);
+      
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: '/images/icon.png',
+        title: 'CHAT Extension',
+        message: 'Developer Mode activated!'
+      });
+    }
+  };
+
+  const handleDeveloperSettingChange = (setting, value) => {
+    const newSettings = { ...settings, [setting]: value };
+    setSettings(newSettings);
+    onUpdateSettings(newSettings);
+  };
+
   const updateChatLedger = async () => {
     chrome.runtime.sendMessage({ type: 'updateChatLedger' });
     
@@ -226,7 +257,13 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
           <Card elevation={1}>
             <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
               <Box display="flex" alignItems="center" gap={0.5} mb={1}>
-                <InfoIcon color="primary" sx={{ fontSize: 16 }} />
+                <IconButton 
+                  onClick={handleAboutIconClick}
+                  size="small"
+                  sx={{ p: 0, mr: 0.5 }}
+                >
+                  <InfoIcon color="primary" sx={{ fontSize: 16 }} />
+                </IconButton>
                 <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
                   About
                 </Typography>
@@ -266,6 +303,55 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
               </Stack>
             </CardContent>
           </Card>
+
+          {/* Developer Settings */}
+          {isDeveloperMode && (
+            <Card elevation={1} sx={{ border: '2px solid #ff9800' }}>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                  <SettingsIcon color="warning" sx={{ fontSize: 16 }} />
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem', color: '#ff9800' }}>
+                    Developer Settings
+                  </Typography>
+                </Box>
+                
+                <FormGroup>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={settings.downloadAllStudents || false}
+                        onChange={(e) => handleDeveloperSettingChange('downloadAllStudents', e.target.checked)}
+                        size="small"
+                        sx={{ p: 0.25 }}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                        Download All Students Regardless of Stage
+                      </Typography>
+                    }
+                    sx={{ my: 0 }}
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={settings.redactStudentNames || false}
+                        onChange={(e) => handleDeveloperSettingChange('redactStudentNames', e.target.checked)}
+                        size="small"
+                        sx={{ p: 0.25 }}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                        Redact Student Names
+                      </Typography>
+                    }
+                    sx={{ my: 0 }}
+                  />
+                </FormGroup>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Reference Manual */}
           <Card elevation={1}>
@@ -336,22 +422,22 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
                   sx={{ width: 60 }}
                 />
                 <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>weeks</Typography>
-                <Box ml="auto">
-                  <IconButton 
-                    size="small" 
-                    onClick={() => handleApprovalWindowChange(-1)}
-                    disabled={approvalWindow <= 1}
-                    sx={{ p: 0.25 }}
-                  >
-                    ⇩
-                  </IconButton>
+                <Box ml="auto" display="flex" flexDirection="column">
                   <IconButton 
                     size="small" 
                     onClick={() => handleApprovalWindowChange(1)}
                     disabled={approvalWindow >= 4}
-                    sx={{ p: 0.25 }}
+                    sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}
                   >
-                    ⇧
+                    <ArrowUpIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleApprovalWindowChange(-1)}
+                    disabled={approvalWindow <= 1}
+                    sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}
+                  >
+                    <ArrowDownIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Box>
               </Box>

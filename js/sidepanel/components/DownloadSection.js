@@ -3,15 +3,13 @@ import {
   Card,
   CardContent,
   TextField,
-  Button,
   Chip,
   Box,
   Typography,
   IconButton,
   Tooltip,
   CircularProgress,
-  Stack,
-  Divider
+  Stack
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -78,6 +76,10 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
     setManualDateMode(false);
   };
 
+  const switchToManualMode = () => {
+    setManualDateMode(true);
+  };
+
   const handleDownload = async () => {
     if (!sectionId || !startDate || !endDate) {
       chrome.notifications.create({
@@ -110,35 +112,38 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
       sx={{ 
         mb: 1,
         borderRadius: 1,
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white'
+        backgroundColor: '#f5f5f5',
+        color: '#333'
       }}
     >
       <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
         <Stack spacing={1}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          {/* First Row: Section ID, Start, End, Download */}
+          <Stack direction="row" spacing={0.5} alignItems="center">
             <TextField
               label="Section ID"
               value={sectionId}
               onChange={(e) => setSectionId(e.target.value)}
               size="small"
               sx={{ 
-                minWidth: 80,
+                width: 70,
+                flexShrink: 0,
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  height: 32,
-                  fontSize: '0.75rem',
-                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                  '&.Mui-focused fieldset': { borderColor: 'white' }
+                  backgroundColor: 'white',
+                  height: 28,
+                  fontSize: '0.7rem',
+                  '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.23)' },
+                  '&:hover fieldset': { borderColor: 'rgba(0, 0, 0, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#722361' },
+                  '& input': { padding: '4px 10px' }
                 },
                 '& .MuiInputLabel-root': { 
                   color: 'rgba(0, 0, 0, 0.6)',
-                  fontSize: '0.75rem',
-                  transform: 'translate(8px, 8px) scale(1)'
+                  fontSize: '0.7rem',
+                  transform: 'translate(14px, 6px) scale(1)'
                 },
                 '& .MuiInputLabel-shrink': {
-                  transform: 'translate(8px, -6px) scale(0.75)'
+                  transform: 'translate(14px, -6px) scale(0.75)'
                 }
               }}
             />
@@ -149,20 +154,23 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
               value={startDate}
               onChange={(e) => handleDateChange('startDate', e.target.value)}
               size="small"
-              InputLabelProps={{ shrink: true }}
+              slotProps={{ inputLabel: { shrink: true } }}
               sx={{ 
-                minWidth: 100,
+                width: 110,
+                flexShrink: 0,
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  height: 32,
-                  fontSize: '0.75rem',
-                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                  '&.Mui-focused fieldset': { borderColor: 'white' }
+                  backgroundColor: 'white',
+                  height: 28,
+                  fontSize: '0.7rem',
+                  '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.23)' },
+                  '&:hover fieldset': { borderColor: 'rgba(0, 0, 0, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#722361' },
+                  '& input': { padding: '4px 10px' }
                 },
                 '& .MuiInputLabel-root': { 
                   color: 'rgba(0, 0, 0, 0.6)',
-                  fontSize: '0.75rem'
+                  fontSize: '0.7rem',
+                  transform: 'translate(14px, -6px) scale(0.75)'
                 }
               }}
             />
@@ -173,100 +181,96 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
               value={endDate}
               onChange={(e) => handleDateChange('endDate', e.target.value)}
               size="small"
-              InputLabelProps={{ shrink: true }}
+              slotProps={{ inputLabel: { shrink: true } }}
               sx={{ 
-                minWidth: 100,
+                width: 110,
+                flexShrink: 0,
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  height: 32,
-                  fontSize: '0.75rem',
-                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                  '&.Mui-focused fieldset': { borderColor: 'white' }
+                  backgroundColor: 'white',
+                  height: 28,
+                  fontSize: '0.7rem',
+                  '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.23)' },
+                  '&:hover fieldset': { borderColor: 'rgba(0, 0, 0, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#722361' },
+                  '& input': { padding: '4px 10px' }
                 },
                 '& .MuiInputLabel-root': { 
                   color: 'rgba(0, 0, 0, 0.6)',
-                  fontSize: '0.75rem'
+                  fontSize: '0.7rem',
+                  transform: 'translate(14px, -6px) scale(0.75)'
                 }
               }}
             />
 
-            <Tooltip title={manualDateMode ? 'Switch to Auto Mode' : `Auto Mode (${windowWeeks} weeks)`}>
-              <IconButton
-                size="small"
-                onClick={manualDateMode ? switchToAutoMode : undefined}
-                disabled={!manualDateMode}
-                sx={{
-                  width: 28,
-                  height: 28,
-                  backgroundColor: manualDateMode ? 'rgba(255, 152, 0, 0.2)' : 'rgba(33, 150, 243, 0.2)',
-                  color: manualDateMode ? '#ff9800' : '#2196f3',
-                  border: `1px solid ${manualDateMode ? '#ff9800' : '#2196f3'}`,
-                  '&:hover': {
-                    backgroundColor: manualDateMode ? 'rgba(255, 152, 0, 0.3)' : 'rgba(33, 150, 243, 0.3)',
-                  },
-                  '&:disabled': {
-                    opacity: 0.7,
-                    color: '#2196f3',
-                    borderColor: '#2196f3'
-                  }
-                }}
-              >
-                {manualDateMode ? <CalendarIcon sx={{ fontSize: 16 }} /> : <RefreshIcon sx={{ fontSize: 16 }} />}
-              </IconButton>
-            </Tooltip>
-
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={isDownloading ? <CircularProgress size={12} color="inherit" /> : <DownloadIcon sx={{ fontSize: 16 }} />}
+            <IconButton
               onClick={handleDownload}
               disabled={isDownloading || !sectionId}
               sx={{
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                backgroundColor: '#722361',
                 color: 'white',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                fontSize: '0.75rem',
-                py: 0.5,
-                px: 1,
-                minHeight: 28,
+                border: '1px solid #722361',
+                width: 28,
+                height: 28,
+                flexShrink: 0,
                 '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                  backgroundColor: '#5a1c4d',
                 },
                 '&:disabled': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  backgroundColor: 'rgba(114, 35, 97, 0.3)',
                   color: 'rgba(255, 255, 255, 0.5)'
                 },
                 ml: 'auto'
               }}
             >
-              {isDownloading ? 'Downloading...' : 'Download'}
-            </Button>
+              {isDownloading ? <CircularProgress size={12} color="inherit" /> : <DownloadIcon sx={{ fontSize: 14 }} />}
+            </IconButton>
           </Stack>
 
+          {/* Second Row: Last Sync and Mode Pill */}
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Box display="flex" alignItems="center" gap={0.5}>
-              <ScheduleIcon sx={{ fontSize: 12, opacity: 0.8 }} />
-              <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.65rem' }}>
+              <ScheduleIcon sx={{ fontSize: 12, color: '#666' }} />
+              <Typography variant="caption" sx={{ color: '#666', fontSize: '0.65rem' }}>
                 Last Sync: {getLastSyncDisplay()}
               </Typography>
             </Box>
             
-            <Chip
-              icon={manualDateMode ? <CalendarIcon sx={{ fontSize: 12 }} /> : <RefreshIcon sx={{ fontSize: 12 }} />}
-              label={manualDateMode ? 'Manual' : `Auto (${windowWeeks}w)`}
-              size="small"
-              sx={{
-                height: 20,
-                fontSize: '0.65rem',
-                backgroundColor: manualDateMode ? 'rgba(255, 152, 0, 0.2)' : 'rgba(33, 150, 243, 0.2)',
-                color: manualDateMode ? '#ff9800' : '#2196f3',
-                border: `1px solid ${manualDateMode ? 'rgba(255, 152, 0, 0.5)' : 'rgba(33, 150, 243, 0.5)'}`,
-                '& .MuiChip-icon': {
-                  color: manualDateMode ? '#ff9800' : '#2196f3'
-                }
-              }}
-            />
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <Chip
+                icon={manualDateMode ? <CalendarIcon sx={{ fontSize: 12 }} /> : <RefreshIcon sx={{ fontSize: 12 }} />}
+                label={manualDateMode ? 'Manual' : `Auto (${windowWeeks}w)`}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: '0.65rem',
+                  backgroundColor: manualDateMode ? 'rgba(255, 193, 7, 0.2)' : 'rgba(76, 175, 80, 0.2)',
+                  color: manualDateMode ? '#f57c00' : '#388e3c',
+                  border: `1px solid ${manualDateMode ? 'rgba(255, 193, 7, 0.5)' : 'rgba(76, 175, 80, 0.5)'}`,
+                  '& .MuiChip-icon': {
+                    color: manualDateMode ? '#f57c00' : '#388e3c'
+                  }
+                }}
+              />
+              
+              <Tooltip title={manualDateMode ? 'Switch to Auto Mode' : 'Switch to Manual Mode'}>
+                <IconButton
+                  size="small"
+                  onClick={manualDateMode ? switchToAutoMode : switchToManualMode}
+                  sx={{
+                    width: 20,
+                    height: 20,
+                    backgroundColor: manualDateMode ? 'rgba(76, 175, 80, 0.2)' : 'rgba(255, 193, 7, 0.2)',
+                    color: manualDateMode ? '#388e3c' : '#f57c00',
+                    border: `1px solid ${manualDateMode ? '#388e3c' : '#f57c00'}`,
+                    '&:hover': {
+                      backgroundColor: manualDateMode ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 193, 7, 0.3)',
+                    }
+                  }}
+                >
+                  {manualDateMode ? <RefreshIcon sx={{ fontSize: 12 }} /> : <CalendarIcon sx={{ fontSize: 12 }} />}
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
         </Stack>
       </CardContent>

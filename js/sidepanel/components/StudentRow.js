@@ -17,7 +17,6 @@ import {
 import {
   CheckCircle as ApproveIcon,
   Info as InfoIcon,
-  MoreVert as MoreIcon,
   Person as PersonIcon,
   Launch as LaunchIcon
 } from '@mui/icons-material';
@@ -28,6 +27,11 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
 
   const decryptName = (encryptedName) => {
     try {
+      // Check if student names should be redacted
+      if (userSettings?.redactStudentNames) {
+        return 'Student Name';
+      }
+      
       if (typeof CryptoJS !== 'undefined' && window.cryptoPass && encryptedName) {
         const decrypted = CryptoJS.AES.decrypt(encryptedName, window.cryptoPass).toString(CryptoJS.enc.Utf8);
         return decrypted || 'Student Name';
@@ -91,16 +95,16 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
       const studentName = decryptName(student[field.field]);
       return (
         <Box display="flex" alignItems="center" gap={0.5}>
-          <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
-            {studentName}
-          </Typography>
           <IconButton
             size="small"
             onClick={handleMenuClick}
-            sx={{ p: 0.25, ml: 0.5 }}
+            sx={{ p: 0.25, mr: 0.5 }}
           >
-            <MoreIcon sx={{ fontSize: 14 }} />
+            <LaunchIcon sx={{ fontSize: 14 }} />
           </IconButton>
+          <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.75rem' }}>
+            {studentName}
+          </Typography>
         </Box>
       );
     }
@@ -173,7 +177,7 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
         }}
       >
         {displayFields.map(field => (
-          <TableCell key={field.field} sx={{ py: 0.25, px: 0.5, fontSize: '0.75rem' }}>
+          <TableCell key={field.field} sx={{ py: 0.25, px: 1, fontSize: '0.75rem' }}>
             {renderCell(field)}
           </TableCell>
         ))}
@@ -185,7 +189,21 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
         onClose={handleMenuClose}
         PaperProps={{
           elevation: 3,
-          sx: { minWidth: 200 }
+          sx: { 
+            minWidth: 120,
+            '& .MuiMenuItem-root': {
+              fontSize: '0.75rem',
+              minHeight: 28,
+              py: 0.5,
+              px: 1
+            },
+            '& .MuiListItemIcon-root': {
+              minWidth: 24
+            },
+            '& .MuiListItemText-primary': {
+              fontSize: '0.75rem'
+            }
+          }
         }}
       >
         {studentLinks.map((link, index) => (

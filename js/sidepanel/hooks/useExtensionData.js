@@ -7,7 +7,7 @@ export const useExtensionData = () => {
   // Listen for storage changes to keep data in sync
   useEffect(() => {
     const handleStorageChange = (changes) => {
-      if (changes.chatLedger || changes.userSettings || changes.students || changes.currentApproval) {
+      if (changes.chatLedger || changes.userSettings || changes.students || changes.currentApproval || changes.sectionName) {
         refreshData();
       }
     };
@@ -36,7 +36,8 @@ export const useExtensionData = () => {
         students: result.students || {},
         userSettings: result.userSettings || {},
         chatLedger: result.chatLedger || {},
-        currentApproval: result.currentApproval || {}
+        currentApproval: result.currentApproval || {},
+        sectionName: result.sectionName || null
       };
       
       setChatData(newChatData);
@@ -47,7 +48,8 @@ export const useExtensionData = () => {
         students: {},
         userSettings: {},
         chatLedger: {},
-        currentApproval: {}
+        currentApproval: {},
+        sectionName: null
       });
     } finally {
       setLoading(false);

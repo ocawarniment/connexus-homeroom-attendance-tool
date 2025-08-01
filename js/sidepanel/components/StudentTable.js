@@ -24,7 +24,10 @@ import {
 } from '@mui/icons-material';
 import StudentRow from './StudentRow';
 
-const StudentTable = ({ students, userSettings, chatLedger, onApprove }) => {
+const StudentTable = ({ students, userSettings, chatLedger, onApprove, sectionName }) => {
+  // Debug logging to verify section name is being received
+  console.log('StudentTable received sectionName:', sectionName);
+  
   if (!students || Object.keys(students).length === 0) {
     return (
       <Card elevation={2} sx={{ p: 4, textAlign: 'center', borderRadius: 2 }}>
@@ -66,7 +69,7 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove }) => {
       <Box sx={{ 
         py: 0.5, 
         px: 1,
-        backgroundColor: 'primary.main', 
+        backgroundColor: '#722361', 
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -74,7 +77,7 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove }) => {
       }}>
         <PersonIcon sx={{ fontSize: 16 }} />
         <Typography variant="subtitle2" component="h2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
-          Students ({studentIds.length})
+          {sectionName || 'Students'} ({studentIds.length})
         </Typography>
       </Box>
       
@@ -87,11 +90,12 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove }) => {
                   key={field.field}
                   sx={{ 
                     fontWeight: 600,
-                    backgroundColor: 'grey.50',
-                    borderBottom: 1,
-                    borderColor: 'primary.main',
+                    backgroundColor: '#722361',
+                    color: 'white',
+                    borderBottom: 2,
+                    borderColor: '#722361',
                     py: 0.25,
-                    px: 0.5,
+                    px: 1,
                     fontSize: '0.7rem',
                     lineHeight: 1.2
                   }}

@@ -192,6 +192,7 @@ const App = () => {
             userSettings={chatData?.userSettings || {}}
             chatLedger={chatData?.chatLedger || {}}
             onApprove={approveAttendance}
+            sectionName={chatData?.sectionName}
           />
         </Box>
 
