@@ -21,6 +21,8 @@ import {
   Launch as LaunchIcon
 } from '@mui/icons-material';
 
+import '../../services/algorithm';
+
 const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedger, onApprove, index }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
@@ -43,6 +45,7 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
     }
   };
 
+  /*
   const getStudentOutcome = (student, ledger) => {
     return [{
       state: 'approve',
@@ -51,6 +54,7 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
       summary: 'All requirements met'
     }];
   };
+  */
 
   const getCellValue = (field, student) => {
     if (field.field === 'name') {
@@ -112,6 +116,7 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
     if (field.field === 'approveButton') {
       const studentOutcome = getStudentOutcome(student, chatLedger?.[userSettings?.school]);
       const outcome = studentOutcome[0] || { state: 'approve', color: 'success' };
+      //outcome.color = 'error'; //success, warning, error
       const isComplete = student.complete;
 
       return (
@@ -120,7 +125,7 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
             variant="contained"
             size="small"
             color={outcome.color}
-            startIcon={<ApproveIcon sx={{ fontSize: 14 }} />}
+            //startIcon={<ApproveIcon sx={{ fontSize: 14 }} />}
             onClick={handleApprove}
             sx={{
               textDecoration: isComplete ? 'line-through' : 'none',

@@ -202,11 +202,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // automate comms and documentation
     if (request.type == "createLog") {
-        chrome.tabs.create({ url: 'https://www.connexus.com/log/logEntry.aspx?idWebuser=' + request.studentID + '&sendto=%2flog%2fdefault.aspx%3fidWebuser%3d' + request.studentID, active: true}, function(tab) {
-            // execute the download homeroom external script on the new tab
-            chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                files: ['js/connexus/log/createLog.js']
+        chrome.storage.local.get(null, function(result){
+            // convert the adjustments to less characters
+            let adjString = result.timeAdjustments.map(entry => {
+                // Regex to extract date, sign, hours, and minutes
+                let match = entry.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}).*?([+-])(\d+).*?(\d+)/);
+                
+                if (match) {
+                    let month = match[1].padStart(2, '0');
+                    let day = match[2].padStart(2, '0');
+                    let year = match[3].slice(-2);
+                    let sign = match[4];
+                    let hours = match[5].padStart(2, '0');
+                    let minutes = match[6].padStart(2, '0');
+                
+                    return `${month}${day}${year}${sign}${hours}h${minutes}m`;
+                }
+            }).join(';');
+            adjString += ';';
+
+            // get the approval window details - comment.innerHTML = "Attendance Adjustments \n" + result.globalStartDate + " - " + result.globalEndDate + "\n\n" + result.studentLessons + "\n" + result.studentAssessments + "\n\n" + changesText;
+            let appWindow = `${result.globalStartDate}-${result.globalEndDate}`;
+            let workNumbers = `L${result.studentLessons.match(/\d+/)[0]}|A${result.studentAssessments.match(/\d+/)[0]}`
+
+            chrome.tabs.create({ url: 'https://www.connexus.com/log/logEntry.aspx?idWebuser=' + request.studentID + '&sendto=%2flog%2fdefault.aspx%3fidWebuser%3d' + request.studentID + '&sectionId=' + result.currentApproval.sectionId + '&adjStr=' + adjString + '&appWindow=' + appWindow + '&workNumbers=' + workNumbers, active: true}, function(tab) {
+                // execute the download homeroom external script on the new tab
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ['js/connexus/log/createLog.js'],
+                    world: 'MAIN'
+                });
             });
         });
     };

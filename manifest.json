@@ -43,6 +43,7 @@
     "tabs",
     "windows",
     "scripting",
+    "activeTab",
     "notifications",
     "sidePanel"
   ],

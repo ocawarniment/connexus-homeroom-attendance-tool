@@ -35,7 +35,7 @@ const Header = ({ school, onSettingsClick }) => {
 
         <Box sx={{ flexGrow: 1 }}>
           <Typography variant="subtitle1" component="h1" fontWeight={600} sx={{ lineHeight: 1.2 }}>
-            CHAT Extension
+            CHAT - Connexus Homeroom Attendance Tool
           </Typography>
         </Box>
 
