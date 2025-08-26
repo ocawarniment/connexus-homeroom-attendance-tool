@@ -1,7 +1,7 @@
 {
   "name": "CHAT - Connexus Homeroom Attendance Tool",
   "description": "Web extension to aggregate Connexus data for a section of students.",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "manifest_version": 3,
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';"
@@ -16,22 +16,38 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-	"content_scripts": [
-	  {
-      "matches": ["https://www.connexus.com/webuser/activity/activity.aspx?idWebuser=*"],
-      "js": ["CryptoJS/aes.js","js/connexus/cat/activityView.js"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.connexus.com/webuser/activity/activity.aspx?idWebuser=*"
+      ],
+      "js": [
+        "CryptoJS/aes.js",
+        "js/connexus/cat/activityView.js"
+      ],
       "all_frames": true,
       "run_at": "document_end"
     },
     {
-      "matches": ["https://www.connexus.com/activitytracker/default/weeksummary?idWebuser=*"],
-      "js": ["CryptoJS/aes.js","js/connexus/cat/weekView.js"],
+      "matches": [
+        "https://www.connexus.com/activitytracker/default/weeksummary?idWebuser=*"
+      ],
+      "js": [
+        "CryptoJS/aes.js",
+        "js/connexus/cat/weekView.js"
+      ],
       "all_frames": true,
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.zoom.us/account/my/report*", "https://zoom.us/account/my/report*"],
-      "js": ["CryptoJS/aes.js","js/zoom/report.js"],
+      "matches": [
+        "https://*.zoom.us/account/my/report*",
+        "https://zoom.us/account/my/report*"
+      ],
+      "js": [
+        "CryptoJS/aes.js",
+        "js/zoom/report.js"
+      ],
       "all_frames": true,
       "run_at": "document_end"
     }

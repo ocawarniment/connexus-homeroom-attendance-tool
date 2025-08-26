@@ -118,10 +118,6 @@ const assessmentCount = parseInt(workMatch[2]);
 		//await waitForElementVisibility('div.blockUI.blockMsg.blockPage img', false);
 		console.log('finished');
 
-		showPicker('section');
-		console.log('clicked!');
-		addSection(sectionId);
-
 		// click comment observation
 		var catBox = document.getElementById("idLogEntryContactType_ctl00");
 		catBox.selectedIndex = 1; //hard coded to get the 1 index which is comment
@@ -192,6 +188,12 @@ const assessmentCount = parseInt(workMatch[2]);
 		} else {
 			alert("No changes!");
 		}
+
+		// add the homeroom section last in case this is not a hr teacher
+		showPicker('section');
+		console.log('clicked!');
+		addSection(sectionId);
+
 		console.log('DONE');
 	})();
 

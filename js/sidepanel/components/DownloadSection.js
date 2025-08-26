@@ -59,41 +59,108 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
     return `${year}-${month}-${day}`;
   };
 
-  const handleDateChange = (field, value) => {
+  const handleDateChange = async (field, value) => {
     if (field === 'startDate') {
       setStartDate(value);
     } else {
       setEndDate(value);
     }
     setManualDateMode(true);
+    
+    // Update chrome.storage.local immediately when dates change
+    try {
+      const updatedApproval = {
+        ...currentApproval,
+        [field]: value,
+        manualDateMode: true
+      };
+      await chrome.storage.local.set({ currentApproval: updatedApproval });
+    } catch (error) {
+      console.error('Error updating date in storage:', error);
+    }
   };
 
-  const switchToAutoMode = () => {
+  const switchToAutoMode = async () => {
     const windowWeeks = userSettings?.approvalWindowWeeks || 2;
     const { startDate: autoStart, endDate: autoEnd } = calculateAutoDateRange(windowWeeks);
     setStartDate(autoStart);
     setEndDate(autoEnd);
     setManualDateMode(false);
+    
+    // Update chrome.storage.local when switching to auto mode
+    try {
+      const updatedApproval = {
+        ...currentApproval,
+        startDate: autoStart,
+        endDate: autoEnd,
+        manualDateMode: false
+      };
+      await chrome.storage.local.set({ currentApproval: updatedApproval });
+    } catch (error) {
+      console.error('Error updating auto mode in storage:', error);
+    }
   };
 
-  const switchToManualMode = () => {
+  const switchToManualMode = async () => {
     setManualDateMode(true);
+    
+    // Update chrome.storage.local when switching to manual mode
+    try {
+      const updatedApproval = {
+        ...currentApproval,
+        manualDateMode: true
+      };
+      await chrome.storage.local.set({ currentApproval: updatedApproval });
+    } catch (error) {
+      console.error('Error updating manual mode in storage:', error);
+    }
   };
 
   const handleDownload = async () => {
-    if (!sectionId || !startDate || !endDate) {
+    if (!sectionId) {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: '/images/icon.png',
         title: 'CHAT Extension',
-        message: 'Please make sure you have entered a Section ID, Start Date, and End Date.'
+        message: 'Please enter a Section ID.'
       });
       return;
     }
 
+    let finalStartDate = startDate;
+    let finalEndDate = endDate;
+
+    // If dates are missing, automatically populate them using auto mode logic
+    if (!startDate || !endDate) {
+      const windowWeeks = userSettings?.approvalWindowWeeks || 2;
+      const { startDate: autoStart, endDate: autoEnd } = calculateAutoDateRange(windowWeeks);
+      
+      finalStartDate = autoStart;
+      finalEndDate = autoEnd;
+      
+      // Update local state
+      setStartDate(autoStart);
+      setEndDate(autoEnd);
+      setManualDateMode(false);
+      
+      // Update chrome.storage.local with auto-populated dates
+      try {
+        const updatedApproval = {
+          ...currentApproval,
+          sectionId,
+          startDate: autoStart,
+          endDate: autoEnd,
+          manualDateMode: false
+        };
+        await chrome.storage.local.set({ currentApproval: updatedApproval });
+      } catch (error) {
+        console.error('Error updating auto-populated dates in storage:', error);
+      }
+    }
+
     setIsDownloading(true);
     try {
-      await onDownload(sectionId, startDate, endDate);
+      await onDownload(sectionId, finalStartDate, finalEndDate);
     } finally {
       setIsDownloading(false);
     }

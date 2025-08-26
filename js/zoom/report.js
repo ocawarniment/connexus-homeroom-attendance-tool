@@ -1,12 +1,19 @@
 /////// CryptoJS INIT ///////
 var cryptoPass = "oca2018";
 
+console.log('loaded page')
+
+//let button = document.querySelector('#app > div > div > div.history-report-wrap > div.participants-dialog > div > div > div.zm-dialog__body > div.participants-header--wrap > div.participant-export--wrap > button');
 let button = document.querySelector('#btnExportParticipants');
 let logButton = button.cloneNode(true);
 logButton.innerText = "Log LiveLesson";
 // document.querySelector('#btnApprove').onclick = function() {changeAttendanceStatus(this.getAttribute('studentid'), true)}
 logButton.onclick = logLiveLesson;
-button.parentElement.append(logButton);
+
+// AUGUST 2025 BUTTON NOT DISPLAYING INTENTIONALLY 
+//button.parentElement.append(logButton);
+
+console.log('button added')
 
 function logLiveLesson(){
     // prompt user for section id
