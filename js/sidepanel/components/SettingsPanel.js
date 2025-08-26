@@ -178,16 +178,14 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
   const updateChatLedger = async () => {
     chrome.runtime.sendMessage({ type: 'updateChatLedger' });
     
-    // Listen for storage changes to update the version display
+    // Simple one-time listener for storage changes
     const handleStorageChange = (changes) => {
       if (changes.chatLedger) {
         const newChatLedger = changes.chatLedger.newValue;
         if (newChatLedger && newChatLedger.version) {
           setChatLedgerVersion(newChatLedger.version);
-          // Also refresh the parent component data
-          if (onRefreshData) {
-            onRefreshData();
-          }
+          // Remove listener immediately after first update
+          chrome.storage.onChanged.removeListener(handleStorageChange);
         }
       }
     };
@@ -195,32 +193,10 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
     // Add listener for storage changes
     chrome.storage.onChanged.addListener(handleStorageChange);
     
-    // Also poll for changes as a backup
-    const pollForChanges = async () => {
-      try {
-        const result = await chrome.storage.local.get(['chatLedger']);
-        if (result.chatLedger && result.chatLedger.version) {
-          const newVersion = result.chatLedger.version;
-          if (newVersion !== chatLedgerVersion) {
-            setChatLedgerVersion(newVersion);
-            if (onRefreshData) {
-              onRefreshData();
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error polling for chatLedger changes:', error);
-      }
-    };
-
-    // Poll every 500ms for 5 seconds
-    const pollInterval = setInterval(pollForChanges, 500);
-    
-    // Clean up after 5 seconds
+    // Clean up listener after 10 seconds as a safety measure
     setTimeout(() => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
-      clearInterval(pollInterval);
-    }, 5000);
+    }, 10000);
   };
 
   const displayFields = Array.isArray(chatLedger?.popupDisplay) ? chatLedger.popupDisplay : [];
