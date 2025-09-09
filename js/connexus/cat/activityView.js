@@ -95,6 +95,7 @@ function checkAutomation(){
 			}
 
 		} else {
+			console.log('getting courses');
 			// quickly renable approve for non cte/ccp student
 			if(document.querySelector('#btnApprove')) {
 				const approveBtn = document.querySelector('#btnApprove');
