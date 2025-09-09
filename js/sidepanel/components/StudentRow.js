@@ -124,11 +124,16 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
           <Button
             variant="contained"
             size="small"
-            color={outcome.color}
+            color={isComplete ? 'inherit' : outcome.color}
             //startIcon={<ApproveIcon sx={{ fontSize: 14 }} />}
             onClick={handleApprove}
             sx={{
               textDecoration: isComplete ? 'line-through' : 'none',
+              backgroundColor: isComplete ? '#d3d3d3' : undefined,
+              color: isComplete ? '#666666' : undefined,
+              '&:hover': {
+                backgroundColor: isComplete ? '#c0c0c0' : undefined,
+              },
               minWidth: 80,
               fontSize: '0.7rem',
               py: 0.25,

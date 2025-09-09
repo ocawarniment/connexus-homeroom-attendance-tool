@@ -1,4 +1,5 @@
 chrome.storage.local.get(null, (result) => {
+    console.log('loading Course Activity titles');
     const catTime = result.catTime;
     var dateCells = document.querySelectorAll('[id*="activityDate"]');
     const tableRows = document.querySelectorAll('tbody > tr');

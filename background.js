@@ -269,10 +269,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.type == 'loadCatTime'){
 			// check that the originally id is still stored
-			chrome.storage.local.get('actLogID', function(result) {
-				chrome.tabs.update(result.actLogId, {active: true});
+			chrome.storage.local.get(null, function(result) {
+                console.log('attempting to load cat time course activity', result);
+				chrome.tabs.update(result.actLogID, {active: true});
 				chrome.scripting.executeScript({
-					target: { tabId: result.actLogId },
+					target: { tabId: result.actLogID },
 					files: ['/js/connexus/cat/activityLog/loadCatTime.js']
 				});
 			});
