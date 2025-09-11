@@ -25,13 +25,22 @@ To activate Developer Mode:
 - **Developer Behavior**: All student names show as "Student Name" regardless of their actual names
 - **Use Case**: Perfect for creating screenshots, demos, or training materials without exposing student personal information
 
+### Randomize Overdue Lesson Counts
+- **Default**: Unchecked (disabled)
+- **Description**: When enabled, randomizes the `totalOverdueLessons` attribute for all students in the API response before processing
+- **Normal Behavior**: Uses actual overdue lesson counts from the Connexus API
+- **Developer Behavior**: Replaces each student's `totalOverdueLessons` with a random number between 1-100
+- **Use Case**: Useful for testing, demonstrations, or training without exposing real student performance data
+
 ## Technical Implementation
 
 ### Frontend Changes
 - Added click counter to the About section's info icon
 - Added Developer Settings card with orange border styling
 - Added checkbox for "Download All Students Regardless of Stage"
-- Settings are persisted in Chrome storage under `userSettings.developerMode`, `userSettings.downloadAllStudents`, and `userSettings.redactStudentNames`
+- Added checkbox for "Redact Student Names"
+- Added checkbox for "Randomize Overdue Lesson Counts"
+- Settings are persisted in Chrome storage under `userSettings.developerMode`, `userSettings.downloadAllStudents`, `userSettings.redactStudentNames`, and `userSettings.randomizeOverdueCounts`
 
 ### Backend Changes
 - Modified `js/connexus/sections/getRoster.js` to check for the `downloadAllStudents` setting
@@ -39,6 +48,8 @@ To activate Developer Mode:
 - Added console logging for debugging when developer mode is active
 - Modified `js/sidepanel/components/StudentRow.js` to check for the `redactStudentNames` setting
 - When enabled, the `decryptName` function returns "Student Name" instead of the actual decrypted name
+- Modified `js/connexus/myStudents/getOverdue.js` to check for the `randomizeOverdueCounts` setting
+- When enabled, randomizes the `totalOverdueLessons` attribute for all students with values between 1-100
 
 ## Usage Notes
 - Developer Mode persists across browser sessions

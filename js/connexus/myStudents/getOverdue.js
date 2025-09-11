@@ -1,14 +1,14 @@
 var storage = chrome.storage.local;
 // message to background console
 function bgConsole(sendCommand) {
-	chrome.runtime.sendMessage({type: 'console', command: sendCommand});
+	chrome.runtime.sendMessage({ type: 'console', command: sendCommand });
 }
 
 /////// CryptoJS INIT ///////
 var cryptoPass = "oca2018";
 
 // reset the date mode
-storage.set({'manualDateMode': "FALSE"});
+storage.set({ 'manualDateMode': "FALSE" });
 
 // allow for backup plan?
 //var BACKUP_PLAN = true;
@@ -20,7 +20,19 @@ console.log('starting');
 (async () => {
 
 	let studentData = await getStudentsAPI();
-	if(studentData.students.length > 0) {
+
+	// Randomize the numbers
+	// Select all elements with the specified attribute
+	const elements = document.querySelectorAll('[count="::student.totalOverdueLessons"]');
+
+	// Iterate over each element and set its content to a random number
+	elements.forEach(element => {
+		const randomNumber = Math.floor(Math.random() * 100) + 1;
+		element.textContent = randomNumber;
+	});
+
+
+	if (studentData.students.length > 0) {
 		// write to chrome storage
 		storage.get(null, result => {
 			let homeroomArray = result.students;
@@ -31,9 +43,9 @@ console.log('starting');
 				// overwrite lessonsBehind as lessonCompMetric
 				homeroomArray[`ST${student.idWebuser}`]['lessonCompMetric'] = student.totalOverdueLessons || 0;
 			})
-	
+
 			// put back to storage
-			storage.set({'students': homeroomArray});
+			storage.set({ 'students': homeroomArray });
 			console.log('overdue lessons storred via API');
 			window.alert('Section download complete!');
 			window.close();
@@ -46,18 +58,18 @@ console.log('starting');
 })();
 
 // tap into the azure API call with cookies storred on the users machine
-async function getStudentsAPI(){
+async function getStudentsAPI() {
 	// get the sectionId
 	const regex = /(?<=mystudents\/)\d*/gm;
 	let sectionId = window.location.href.match(regex)[0];
 
 	// get the cookies
 	let cookiesArray = document.cookie.split("; ")
-	  let cookies = {};
-	  cookiesArray.forEach(cookie => {
-		  let keyValue = cookie.split("=");
-		  cookies[keyValue[0]] = keyValue[1]
-	  })
+	let cookies = {};
+	cookiesArray.forEach(cookie => {
+		let keyValue = cookie.split("=");
+		cookies[keyValue[0]] = keyValue[1]
+	})
 
 	// set the url
 	let reqUrl = `https://www.connexus.com/api/section/students?idWebuser=${cookies.idWebuserEncrypted}&idSection=${sectionId}&includeInactive=true`;
@@ -69,7 +81,26 @@ async function getStudentsAPI(){
 		headers: headers
 	});
 
-	return response.json(); 
+	const responseData = await response.json();
+
+	// Check for developer mode setting to randomize overdue lesson counts
+	return new Promise((resolve) => {
+		storage.get(['userSettings'], (result) => {
+			const userSettings = result.userSettings || {};
+			const shouldRandomize = userSettings.randomizeOverdueCounts || false;
+
+			if (shouldRandomize && responseData.students) {
+				console.log('Developer Mode: Randomizing overdue lesson counts');
+				responseData.students.forEach(student => {
+					if (student.hasOwnProperty('totalOverdueLessons')) {
+						student.totalOverdueLessons = Math.floor(Math.random() * 100) + 1;
+					}
+				});
+			}
+
+			resolve(responseData);
+		});
+	});
 }
 
 /*
@@ -150,8 +181,8 @@ function scanTable() {
 		console.log(myStudentsPage.measures.studentId);
 		console.log(myStudentsPage.measures.overdueLessons);
 
-        // get current students
-        let homeroomArray = result.students;
+		// get current students
+		let homeroomArray = result.students;
 		// print all tbody elements
 		var studentRows;
 		studentRows = document.getElementsByClassName("my-students cxForm ng-scope")[0].getElementsByClassName("cxTable ng-scope")[0].getElementsByTagName("tbody")[0].getElementsByTagName("tr");
