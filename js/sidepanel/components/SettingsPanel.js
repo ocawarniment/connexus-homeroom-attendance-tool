@@ -324,6 +324,22 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
                     }
                     sx={{ my: 0 }}
                   />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={settings.randomizeOverdueCounts || false}
+                        onChange={(e) => handleDeveloperSettingChange('randomizeOverdueCounts', e.target.checked)}
+                        size="small"
+                        sx={{ p: 0.25 }}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                        Randomize Overdue Lesson Counts
+                      </Typography>
+                    }
+                    sx={{ my: 0 }}
+                  />
                 </FormGroup>
               </CardContent>
             </Card>
