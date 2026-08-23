@@ -1,0 +1,72 @@
+name: Create CHAT release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Extension version to release (must match manifest.json, e.g. 4.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish CHAT ${{ inputs.version }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the selected commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify release version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          manifest_version="$(node -p "require('./manifest.json').version")"
+          package_version="$(node -p "require('./package.json').version")"
+          if [ "$RELEASE_VERSION" != "$manifest_version" ] || [ "$RELEASE_VERSION" != "$package_version" ]; then
+            echo "The requested version ($RELEASE_VERSION) must match manifest.json ($manifest_version) and package.json ($package_version)."
+            exit 1
+          fi
+
+      - name: Build production side panel
+        run: npm run build
+
+      - name: Create extension package
+        run: |
+          rm -rf release CHAT.zip
+          mkdir -p release/CHAT
+          cp manifest.json background.js chatLedger.json popup.html popup.js popup.css sidepanel.html release/CHAT/
+          cp -R CryptoJS css dist images js release/CHAT/
+          (
+            cd release
+            zip -r ../CHAT.zip CHAT
+          )
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          tag="v$RELEASE_VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists. Choose a new version."
+            exit 1
+          fi
+          gh release create "$tag" CHAT.zip \
+            --target "$GITHUB_SHA" \
+            --title "CHAT v$RELEASE_VERSION" \
+            --generate-notes
