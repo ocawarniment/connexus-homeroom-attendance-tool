@@ -3,7 +3,7 @@
 1. Update the extension version in `manifest.json`.
 2. Commit and push the completed extension changes to `master`.
 3. In GitHub, open **Actions** and select **Create CHAT release**.
-4. Select **Run workflow**. The workflow reads the version from `manifest.json` on the selected branch.
+4. Select **Run workflow**, enter a short release summary, and start it. The workflow reads the version from `manifest.json` on the selected branch and names the release `v<version> - <summary>`.
 5. When the workflow succeeds, share this stable download link with staff:
 
    `https://github.com/ocawarniment/connexus-homeroom-attendance-tool/releases/latest/download/CHAT.zip`

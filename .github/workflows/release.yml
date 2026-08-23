@@ -2,6 +2,11 @@ name: Create CHAT release
 
 on:
   workflow_dispatch:
+    inputs:
+      summary:
+        description: 'Short release summary (for example, Background downloads and visual refresh)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -54,6 +59,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_SUMMARY: ${{ inputs.summary }}
         run: |
           tag="v$RELEASE_VERSION"
           if gh release view "$tag" >/dev/null 2>&1; then
@@ -62,5 +68,5 @@ jobs:
           fi
           gh release create "$tag" CHAT.zip \
             --target "$GITHUB_SHA" \
-            --title "CHAT v$RELEASE_VERSION" \
+            --title "v$RELEASE_VERSION - $RELEASE_SUMMARY" \
             --generate-notes
