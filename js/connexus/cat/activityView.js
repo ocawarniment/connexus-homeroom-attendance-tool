@@ -18,7 +18,7 @@ function createActivityDataStatus() {
 	style.textContent = `
 		#chatDataStatus{position:fixed;right:22px;bottom:22px;z-index:9999;width:330px;padding:13px 15px;border:1px solid #d8c6d4;border-radius:8px;background:rgba(255,255,255,.97);box-shadow:0 10px 28px rgba(48,18,43,.2);font:14px/1.4 Arial,sans-serif;color:#32182e}
 		.chat-data-status-title{margin-bottom:8px;font-weight:700;color:#722362}
-		.chat-data-step{display:flex;align-items:center;gap:8px;padding:4px 0;color:#5f5860}.chat-data-icon{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:50%;background:#ece1e9;color:#722362;font-weight:700}
+		.chat-data-step{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;column-gap:9px;padding:5px 0;color:#5f5860}.chat-data-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;line-height:1;border-radius:50%;background:#ece1e9;color:#722362;font-weight:700}
 		.chat-data-step[data-state="complete"]{color:#287d37}.chat-data-step[data-state="complete"] .chat-data-icon{background:#2f9e44;color:#fff}.chat-data-step[data-state="error"]{color:#b43a3a}.chat-data-step[data-state="error"] .chat-data-icon{background:#b43a3a;color:#fff}`;
 	document.head.appendChild(style);
 	document.body.appendChild(panel);

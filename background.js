@@ -28,22 +28,29 @@ function materializeLedgerAliases(ledger) {
 }
 
 function sendActivityProgress(tabId, step, status, message) {
+    console.info(`[CHAT activity data] ${step}: ${status}`, { sourceTabId: tabId, message });
     if (!tabId) return;
     chrome.tabs.sendMessage(tabId, { type: 'activityDataProgress', step, status, message }).catch(() => {});
 }
 
 async function waitForTabLoad(tabId, timeoutMs = 30000) {
+    console.info('[CHAT activity data] Waiting for worker tab to load.', { tabId, timeoutMs });
     const tab = await chrome.tabs.get(tabId);
-    if (tab.status === 'complete') return;
+    if (tab.status === 'complete') {
+        console.info('[CHAT activity data] Worker tab was already loaded.', { tabId });
+        return;
+    }
     await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
             chrome.tabs.onUpdated.removeListener(onUpdated);
+            console.error('[CHAT activity data] Worker tab timed out while loading.', { tabId, timeoutMs });
             reject(new Error('Background data workspace did not finish loading.'));
         }, timeoutMs);
         const onUpdated = (updatedTabId, changeInfo) => {
             if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
             clearTimeout(timeout);
             chrome.tabs.onUpdated.removeListener(onUpdated);
+            console.info('[CHAT activity data] Worker tab finished loading.', { tabId });
             resolve();
         };
         chrome.tabs.onUpdated.addListener(onUpdated);
@@ -52,6 +59,7 @@ async function waitForTabLoad(tabId, timeoutMs = 30000) {
 
 async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
     sendActivityProgress(sourceTabId, step, 'loading');
+    console.info('[CHAT activity data] Opening hidden worker.', { sourceTabId, step, url, scriptFile });
     const workerWindow = await chrome.windows.create({
         url,
         type: 'popup',
@@ -62,11 +70,15 @@ async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
     });
     const workerTab = workerWindow.tabs?.[0];
     if (!workerTab) throw new Error('Unable to create the background data workspace.');
+    console.info('[CHAT activity data] Hidden worker created.', { sourceTabId, step, windowId: workerWindow.id, tabId: workerTab.id });
 
     const existing = activityDataWorkers.get(sourceTabId) || {};
     activityDataWorkers.set(sourceTabId, { ...existing, [step]: { windowId: workerWindow.id, tabId: workerTab.id } });
     await waitForTabLoad(workerTab.id);
-    if (scriptFile) await chrome.scripting.executeScript({ target: { tabId: workerTab.id }, files: [scriptFile] });
+    if (scriptFile) {
+        console.info('[CHAT activity data] Injecting worker script.', { sourceTabId, step, tabId: workerTab.id, scriptFile });
+        await chrome.scripting.executeScript({ target: { tabId: workerTab.id }, files: [scriptFile] });
+    }
     return workerTab;
 }
 
@@ -88,7 +100,10 @@ async function finishActivityDataWorker(sourceTabId, step, status = 'complete', 
     delete remaining[step];
     if (Object.keys(remaining).length) activityDataWorkers.set(sourceTabId, remaining);
     else activityDataWorkers.delete(sourceTabId);
-    try { await chrome.windows.remove(details.windowId); } catch (error) { console.warn('Background data workspace was already closed.', error); }
+    try {
+        await chrome.windows.remove(details.windowId);
+        console.info('[CHAT activity data] Hidden worker closed.', { sourceTabId, step, windowId: details.windowId });
+    } catch (error) { console.warn('[CHAT activity data] Background data workspace was already closed.', { sourceTabId, step, error: error.message }); }
 }
 
 chrome.runtime.onInstalled.addListener(function(details){
@@ -177,7 +192,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const result = await chrome.scripting.executeScript({ target: { tabId }, files: ['js/services/waitAndScrape.js'] });
                 sendResponse(result[0].result);
             } catch (error) {
-                console.error('Script execution error:', error);
+                console.error('[CHAT activity data] Prerequisite value scrape failed.', { url: request.url, tabId, error: error.message, stack: error.stack });
                 sendResponse(null);
             } finally {
                 if (workerWindow?.id) {
@@ -198,7 +213,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 'work',
                 'https://www.connexus.com/webuser/dataview.aspx?idWebuser=' + result.studentID + '&idDataview=410',
                 'js/connexus/dataview/getWork.js'
-            ).catch(() => sendActivityProgress(sourceTabId, 'work', 'error', 'Could not download lesson and assessment data.'));
+            ).catch(error => {
+                console.error('[CHAT activity data] Lesson and assessment worker failed.', { sourceTabId, error: error.message, stack: error.stack });
+                sendActivityProgress(sourceTabId, 'work', 'error', 'Could not download lesson and assessment data.');
+            });
         });
     }
 
@@ -250,7 +268,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (!activityTabId) return;
             updateWorkCounts(activityTabId)
                 .then(() => finishActivityDataWorker(activityTabId, 'work'))
-                .catch(() => sendActivityProgress(activityTabId, 'work', 'error', 'Could not load lesson and assessment data.'));
+                .catch(error => {
+                    console.error('[CHAT activity data] Lesson and assessment handoff failed.', { activityTabId, error: error.message, stack: error.stack });
+                    sendActivityProgress(activityTabId, 'work', 'error', 'Could not load lesson and assessment data.');
+                });
         });
     };
 
@@ -261,7 +282,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if(request.type == "openPage"){
         if (request.hidden) {
             startActivityDataWorker(sender.tab?.id, 'course', request.url)
-                .catch(() => sendActivityProgress(sender.tab?.id, 'course', 'error', 'Could not download course activity data.'));
+                .catch(error => {
+                    console.error('[CHAT activity data] Course activity worker failed.', { sourceTabId: sender.tab?.id, error: error.message, stack: error.stack });
+                    sendActivityProgress(sender.tab?.id, 'course', 'error', 'Could not download course activity data.');
+                });
         } else {
             chrome.tabs.create({ url: request.url, active: request.focused }, function(tab) {
                 // Do Nothin
@@ -350,8 +374,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				chrome.scripting.executeScript({
 					target: { tabId: activityTabId },
 					files: ['/js/connexus/cat/activityLog/loadCatTime.js']
-				}).then(() => finishActivityDataWorker(activityTabId, 'course'))
-				  .catch(() => sendActivityProgress(activityTabId, 'course', 'error', 'Could not load course activity data.'));
+                }).then(() => finishActivityDataWorker(activityTabId, 'course'))
+				  .catch(error => {
+					  console.error('[CHAT activity data] Course activity handoff failed.', { activityTabId, error: error.message, stack: error.stack });
+					  sendActivityProgress(activityTabId, 'course', 'error', 'Could not load course activity data.');
+				  });
 			});
 		}
 
