@@ -625,6 +625,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			});
 		}
 
+    if (request.type === 'courseActivityError') {
+        const worker = findActivityWorkerByTab(sender.tab?.id);
+        const sourceTabId = worker?.sourceTabId;
+        console.warn('[CHAT activity data] Course activity scrape did not complete.', { sourceTabId, reason: request.reason });
+        finishActivityDataWorker(sourceTabId, 'course', 'error', activityDataFailureMessage('course'))
+            .catch(error => logExpectedTabIssue('Unable to close the failed course activity worker.', error, { sourceTabId }));
+    }
+
     if (request.type == "loadCAT") {
         (async () => {
             const tabId = sender.tab?.id;
