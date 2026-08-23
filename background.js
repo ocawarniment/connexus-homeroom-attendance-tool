@@ -64,9 +64,7 @@ async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
         url,
         type: 'popup',
         state: 'minimized',
-        focused: false,
-        width: 480,
-        height: 320
+        focused: false
     });
     const workerTab = workerWindow.tabs?.[0];
     if (!workerTab) throw new Error('Unable to create the background data workspace.');
@@ -176,7 +174,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             let tabId;
             try {
                 if (request.hidden) {
-                    workerWindow = await chrome.windows.create({ url: request.url, type: 'popup', state: 'minimized', focused: false, width: 480, height: 320 });
+                    workerWindow = await chrome.windows.create({ url: request.url, type: 'popup', state: 'minimized', focused: false });
                     tabId = workerWindow.tabs?.[0]?.id;
                 } else {
                     const tab = await chrome.tabs.create({ url: request.url, active: false });
@@ -214,7 +212,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 'https://www.connexus.com/webuser/dataview.aspx?idWebuser=' + result.studentID + '&idDataview=410',
                 'js/connexus/dataview/getWork.js'
             ).catch(error => {
-                console.error('[CHAT activity data] Lesson and assessment worker failed.', { sourceTabId, error: error.message, stack: error.stack });
+                console.error('[CHAT activity data] Lesson and assessment worker failed.', error, { sourceTabId });
                 sendActivityProgress(sourceTabId, 'work', 'error', 'Could not download lesson and assessment data.');
             });
         });
@@ -269,7 +267,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             updateWorkCounts(activityTabId)
                 .then(() => finishActivityDataWorker(activityTabId, 'work'))
                 .catch(error => {
-                    console.error('[CHAT activity data] Lesson and assessment handoff failed.', { activityTabId, error: error.message, stack: error.stack });
+                    console.error('[CHAT activity data] Lesson and assessment handoff failed.', error, { activityTabId });
                     sendActivityProgress(activityTabId, 'work', 'error', 'Could not load lesson and assessment data.');
                 });
         });
@@ -283,7 +281,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.hidden) {
             startActivityDataWorker(sender.tab?.id, 'course', request.url)
                 .catch(error => {
-                    console.error('[CHAT activity data] Course activity worker failed.', { sourceTabId: sender.tab?.id, error: error.message, stack: error.stack });
+                    console.error('[CHAT activity data] Course activity worker failed.', error, { sourceTabId: sender.tab?.id });
                     sendActivityProgress(sender.tab?.id, 'course', 'error', 'Could not download course activity data.');
                 });
         } else {
@@ -376,7 +374,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 					files: ['/js/connexus/cat/activityLog/loadCatTime.js']
                 }).then(() => finishActivityDataWorker(activityTabId, 'course'))
 				  .catch(error => {
-					  console.error('[CHAT activity data] Course activity handoff failed.', { activityTabId, error: error.message, stack: error.stack });
+					  console.error('[CHAT activity data] Course activity handoff failed.', error, { activityTabId });
 					  sendActivityProgress(activityTabId, 'course', 'error', 'Could not load course activity data.');
 				  });
 			});
