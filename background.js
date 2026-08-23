@@ -1,6 +1,7 @@
 // Initialize chatLedger variable for service worker
 let chatLedger = null;
 let activeSectionDownload = null;
+const activityDataWorkers = new Map();
 chrome.storage.local.get(null, result => {
     chatLedger = materializeLedgerAliases(result.chatLedger);
     if (chatLedger !== result.chatLedger) chrome.storage.local.set({ chatLedger });
@@ -24,6 +25,70 @@ function materializeLedgerAliases(ledger) {
         expandedLedger[school] = { ...JSON.parse(JSON.stringify(source)), ...overrides, name: school };
     });
     return expandedLedger;
+}
+
+function sendActivityProgress(tabId, step, status, message) {
+    if (!tabId) return;
+    chrome.tabs.sendMessage(tabId, { type: 'activityDataProgress', step, status, message }).catch(() => {});
+}
+
+async function waitForTabLoad(tabId, timeoutMs = 30000) {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.status === 'complete') return;
+    await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(onUpdated);
+            reject(new Error('Background data workspace did not finish loading.'));
+        }, timeoutMs);
+        const onUpdated = (updatedTabId, changeInfo) => {
+            if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
+            clearTimeout(timeout);
+            chrome.tabs.onUpdated.removeListener(onUpdated);
+            resolve();
+        };
+        chrome.tabs.onUpdated.addListener(onUpdated);
+    });
+}
+
+async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
+    sendActivityProgress(sourceTabId, step, 'loading');
+    const workerWindow = await chrome.windows.create({
+        url,
+        type: 'popup',
+        state: 'minimized',
+        focused: false,
+        width: 480,
+        height: 320
+    });
+    const workerTab = workerWindow.tabs?.[0];
+    if (!workerTab) throw new Error('Unable to create the background data workspace.');
+
+    const existing = activityDataWorkers.get(sourceTabId) || {};
+    activityDataWorkers.set(sourceTabId, { ...existing, [step]: { windowId: workerWindow.id, tabId: workerTab.id } });
+    await waitForTabLoad(workerTab.id);
+    if (scriptFile) await chrome.scripting.executeScript({ target: { tabId: workerTab.id }, files: [scriptFile] });
+    return workerTab;
+}
+
+function findActivityWorkerByTab(tabId) {
+    for (const [sourceTabId, worker] of activityDataWorkers.entries()) {
+        for (const [step, details] of Object.entries(worker)) {
+            if (details?.tabId === tabId) return { sourceTabId, step, details };
+        }
+    }
+    return null;
+}
+
+async function finishActivityDataWorker(sourceTabId, step, status = 'complete', message) {
+    const worker = activityDataWorkers.get(sourceTabId);
+    const details = worker?.[step];
+    sendActivityProgress(sourceTabId, step, status, message);
+    if (!details) return;
+    const remaining = { ...worker };
+    delete remaining[step];
+    if (Object.keys(remaining).length) activityDataWorkers.set(sourceTabId, remaining);
+    else activityDataWorkers.delete(sourceTabId);
+    try { await chrome.windows.remove(details.windowId); } catch (error) { console.warn('Background data workspace was already closed.', error); }
 }
 
 chrome.runtime.onInstalled.addListener(function(details){
@@ -117,18 +182,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } 
 
     if (request.type == "getWork") {
-        // close tab id they request
-        if (request.closeSender == true) { chrome.tabs.remove(sender.tab.id); }
-        // load variables
+        const sourceTabId = sender.tab?.id;
         chrome.storage.local.get(null, function (result) {
-            // create the tab with the student id
-            chrome.tabs.create({ url: 'https://www.connexus.com/webuser/dataview.aspx?idWebuser=' + result.studentID + '&idDataview=410', active: false }, function(tab) {
-                // execute the get work script on the opened tab
-                chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    files: ['js/connexus/dataView/getWork.js']
-                });
-            });
+            startActivityDataWorker(
+                sourceTabId,
+                'work',
+                'https://www.connexus.com/webuser/dataview.aspx?idWebuser=' + result.studentID + '&idDataview=410',
+                'js/connexus/dataview/getWork.js'
+            ).catch(() => sendActivityProgress(sourceTabId, 'work', 'error', 'Could not download lesson and assessment data.'));
         });
     }
 
@@ -160,8 +221,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     if (request.type == "saveWork") {
         chrome.storage.local.set({"workReload": true});
-        if (request.closeSender == true) { chrome.tabs.remove(sender.tab.id); }
-        // load variables
+        // Keep the hidden worker open until its values have been copied back to the activity page.
         chrome.scripting.executeScript({
             target: { tabId: sender.tab.id },
             files: ['js/background/storeWork.js']
@@ -174,15 +234,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     };
     
     if (request.type == "updateWork") {
-        try{
-            // check that the originally id is still stored
-            console.log('updateWorkCounts')
-            chrome.storage.local.get('actLogID', function(result) { updateWorkCounts(result.actLogID); });
-            // close out any stragglers
-            // close sender
-            //chrome.tabs.remove(sender.tab.id);
-            closeWorkDVs();
-        }catch(err){}
+        const activityWorker = findActivityWorkerByTab(sender.tab?.id);
+        const sourceTabId = activityWorker?.sourceTabId;
+        chrome.storage.local.get('actLogID', function(result) {
+            const activityTabId = sourceTabId || result.actLogID;
+            if (!activityTabId) return;
+            updateWorkCounts(activityTabId)
+                .then(() => finishActivityDataWorker(activityTabId, 'work'))
+                .catch(() => sendActivityProgress(activityTabId, 'work', 'error', 'Could not load lesson and assessment data.'));
+        });
     };
 
     if (request.type == "checkAssessments") {
@@ -190,9 +250,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if(request.type == "openPage"){
-        chrome.tabs.create({ url: request.url, active: request.focused }, function(tab) {
-            // Do Nothin
-        });
+        if (request.hidden) {
+            startActivityDataWorker(sender.tab?.id, 'course', request.url)
+                .catch(() => sendActivityProgress(sender.tab?.id, 'course', 'error', 'Could not download course activity data.'));
+        } else {
+            chrome.tabs.create({ url: request.url, active: request.focused }, function(tab) {
+                // Do Nothin
+            });
+        }
         if(request.closeSender){
             chrome.tabs.remove(sender.tab.id);
         }
@@ -266,16 +331,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.type == 'loadCatTime'){
+		const activityWorker = findActivityWorkerByTab(sender.tab?.id);
+		const sourceTabId = activityWorker?.sourceTabId;
 			// check that the originally id is still stored
 			chrome.storage.local.get(null, function(result) {
                 console.log('attempting to load cat time course activity', result);
-				chrome.tabs.update(result.actLogID, {active: true});
+				const activityTabId = sourceTabId || result.actLogID;
+				chrome.tabs.update(activityTabId, {active: false});
 				chrome.scripting.executeScript({
-					target: { tabId: result.actLogID },
+					target: { tabId: activityTabId },
 					files: ['/js/connexus/cat/activityLog/loadCatTime.js']
-				});
+				}).then(() => finishActivityDataWorker(activityTabId, 'course'))
+				  .catch(() => sendActivityProgress(activityTabId, 'course', 'error', 'Could not load course activity data.'));
 			});
-			if (request.closeSender == true) { chrome.tabs.remove(sender.tab.id); }
 		}
 
     if (request.type == "loadCAT") {
@@ -378,25 +446,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.type == "cteccpAlertResults") {
         console.log('cteccpStatus: ' + request.correct);
+		const activityWorker = findActivityWorkerByTab(sender.tab?.id);
+		const sourceTabId = activityWorker?.sourceTabId;
         chrome.storage.local.get(null, (results)=>{
             var correct = request.correct;
+			const activityTabId = sourceTabId || results.actLogID;
             if(correct == false) {
-                const tabId = results.actLogID;
-                chrome.tabs.update(tabId, {active: true});
+                const tabId = activityTabId;
+                chrome.tabs.update(tabId, {active: false});
                 chrome.scripting.executeScript({
                     target: { tabId: tabId },
                     files: ['js/connexus/cat/activityLog/cteccpInitiateChange.js']
                 });
             } else {
-                const tabId = results.actLogID;
-                chrome.tabs.update(tabId, {active: true});
+                const tabId = activityTabId;
+                chrome.tabs.update(tabId, {active: false});
                 chrome.scripting.executeScript({
                     target: { tabId: tabId },
                     files: ['js/connexus/cat/activityLog/cteccpConfirmTime.js']
                 });
             }
+			finishActivityDataWorker(activityTabId, 'course');
         })
-        chrome.tabs.remove(sender.tab.id, ()=>{} );
     }
 
     if (request.type == "activityLogOpenAndSave") {
@@ -774,8 +845,7 @@ function focusOnAL() {
 
 // function to update work
 function updateWorkCounts(activitiesLogID) {
-	chrome.tabs.update(activitiesLogID, {active: true});
-	chrome.scripting.executeScript({
+	return chrome.scripting.executeScript({
 		target: { tabId: activitiesLogID },
 		files: ['js/background/loadWork.js']
 	});

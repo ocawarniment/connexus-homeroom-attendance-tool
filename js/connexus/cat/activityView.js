@@ -6,6 +6,39 @@ function bgConsole(sendCommand) {
 // chrome local
 var storage = chrome.storage.local;
 
+function createActivityDataStatus() {
+	if (document.getElementById('chatDataStatus')) return;
+	const panel = document.createElement('div');
+	panel.id = 'chatDataStatus';
+	panel.innerHTML = `
+		<div class="chat-data-status-title">CHAT is preparing attendance data</div>
+		<div class="chat-data-step" data-step="work"><span class="chat-data-icon">?</span><span><strong>Step 1</strong> · Download lesson and assessment data</span></div>
+		<div class="chat-data-step" data-step="course"><span class="chat-data-icon">?</span><span><strong>Step 2</strong> · Download course activity data</span></div>`;
+	const style = document.createElement('style');
+	style.textContent = `
+		#chatDataStatus{position:fixed;right:22px;bottom:22px;z-index:9999;width:330px;padding:13px 15px;border:1px solid #d8c6d4;border-radius:8px;background:rgba(255,255,255,.97);box-shadow:0 10px 28px rgba(48,18,43,.2);font:14px/1.4 Arial,sans-serif;color:#32182e}
+		.chat-data-status-title{margin-bottom:8px;font-weight:700;color:#722362}
+		.chat-data-step{display:flex;align-items:center;gap:8px;padding:4px 0;color:#5f5860}.chat-data-icon{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:50%;background:#ece1e9;color:#722362;font-weight:700}
+		.chat-data-step[data-state="complete"]{color:#287d37}.chat-data-step[data-state="complete"] .chat-data-icon{background:#2f9e44;color:#fff}.chat-data-step[data-state="error"]{color:#b43a3a}.chat-data-step[data-state="error"] .chat-data-icon{background:#b43a3a;color:#fff}`;
+	document.head.appendChild(style);
+	document.body.appendChild(panel);
+}
+
+function updateActivityDataStatus(step, status, message) {
+	const row = document.querySelector(`#chatDataStatus [data-step="${step}"]`);
+	if (!row) return;
+	const icon = row.querySelector('.chat-data-icon');
+	row.dataset.state = status;
+	if (status === 'complete') icon.textContent = '✓';
+	else if (status === 'error') icon.textContent = '!';
+	else icon.textContent = '?';
+	if (message) row.querySelector('span:last-child').innerHTML = `<strong>Step ${step === 'work' ? '1' : '2'}</strong> · ${message}`;
+}
+
+chrome.runtime.onMessage.addListener((request) => {
+	if (request.type === 'activityDataProgress') updateActivityDataStatus(request.step, request.status, request.message);
+});
+
 /////// CryptoJS INIT ///////
 var cryptoPass = "oca2018";
 
@@ -18,6 +51,7 @@ if (document.getElementById("startDate").getAttribute("Value") == null) {
 }
 
 if (pageState == "active") {
+	createActivityDataStatus();
 	// temporarily disable the approve buttton as the page loads\
 	if(document.querySelector('#btnApprove')) {
 		const approveBtn = document.querySelector('#btnApprove');
@@ -78,7 +112,7 @@ function checkAutomation(){
 					cteccpButton.setAttribute('time', response.toString());
 					cteccpButton.value = `Checking ${course.toUpperCase()} Hours...`;
 					cteccpButton.setAttribute('style','border: 1px solid #565656;color:  #fff;text-shadow: 0 0 2px #010c24; background: #A4A4A4; background-image: linear-gradient(#A4A4A4, #7E7E7E);');
-					chrome.runtime.sendMessage({type: 'openPage', url: checkUrl, focused: false});
+					chrome.runtime.sendMessage({type: 'openPage', url: checkUrl, focused: false, hidden: true});
 				});
 			} else {
 				var cteccpButton = document.querySelector('#btnApprove');
@@ -91,7 +125,7 @@ function checkAutomation(){
 				cteccpButton.value = `Checking ${course.toUpperCase()} Hours...`;
 				cteccpButton.setAttribute('style','border: 1px solid #565656;color:  #fff;text-shadow: 0 0 2px #010c24; background: #A4A4A4; background-image: linear-gradient(#A4A4A4, #7E7E7E);');
 
-				chrome.runtime.sendMessage({type: 'openPage', url: checkUrl, focused: false});
+				chrome.runtime.sendMessage({type: 'openPage', url: checkUrl, focused: false, hidden: true});
 			}
 
 		} else {
@@ -104,7 +138,7 @@ function checkAutomation(){
 			}
 			const autoString = "auto=getCourses";
 			var checkUrl = "https://www.connexus.com/activitytracker/default/weeksummary?idWebuser=" + url.match(/(?<=idWebuser\=)[\d]+/g)[0] + "&startDate=" + formatDate(cutDate.toString(), 'YYYY-MM-DD') + "&endDate=" + formatDate(endDate.toString(), 'YYYY-MM-DD') + "&" + autoString;
-			chrome.runtime.sendMessage({type: 'openPage', url: checkUrl, focused: false});
+			chrome.runtime.sendMessage({type: 'openPage', url: checkUrl, focused: false, hidden: true});
 		}
 	})
 }
