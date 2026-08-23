@@ -2,12 +2,12 @@
 let chatLedger = null;
 let activeSectionDownload = null;
 const activityDataWorkers = new Map();
-const ACTIVITY_DATA_STEP_TIMEOUT_MS = 30000;
+const ACTIVITY_DATA_STEP_TIMEOUT_MS = 20000;
 
 function activityDataFailureMessage(step) {
     return step === 'work'
-        ? 'Unable to download lesson and assessment data. Course activity data can still load, but lesson counts and assessment completion will be unavailable.'
-        : 'Unable to download course activity data. Lesson and assessment data can still load, but course activity totals will be unavailable.';
+        ? 'Unable to display lesson and assessment counts.'
+        : 'Unable to overwrite Course Activity with specific course name.';
 }
 chrome.storage.local.get(null, result => {
     chatLedger = materializeLedgerAliases(result.chatLedger);

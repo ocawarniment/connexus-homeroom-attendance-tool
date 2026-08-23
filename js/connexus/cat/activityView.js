@@ -113,7 +113,7 @@ function checkAutomation(){
 			if(time == 'auto') {
 				chrome.runtime.sendMessage({type: 'scrapeValue', url: `https://www.connexus.com/dataview/${dataViewId}?idWebuser=` + studentID, cssSelector: `${elemId}`, hidden: true}, async (response)=>{
 					if (response === null) {
-						updateActivityDataStatus('course', 'error', 'Unable to download course activity data. Lesson and assessment data can still load, but course activity totals will be unavailable.');
+						updateActivityDataStatus('course', 'error', 'Unable to overwrite Course Activity with specific course name.');
 						return;
 					}
 					console.log(response);
