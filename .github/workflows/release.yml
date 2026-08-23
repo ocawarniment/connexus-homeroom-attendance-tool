@@ -2,18 +2,13 @@ name: Create CHAT release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Extension version to release (must match manifest.json, e.g. 4.0.0)'
-        required: true
-        type: string
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: Build and publish CHAT ${{ inputs.version }}
+    name: Build and publish CHAT
     runs-on: ubuntu-latest
 
     steps:
@@ -31,15 +26,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify release version
-        env:
-          RELEASE_VERSION: ${{ inputs.version }}
+      - name: Read extension version
+        id: version
         run: |
           manifest_version="$(node -p "require('./manifest.json').version")"
-          if [ "$RELEASE_VERSION" != "$manifest_version" ]; then
-            echo "The requested version ($RELEASE_VERSION) must match manifest.json ($manifest_version)."
+          if [ -z "$manifest_version" ]; then
+            echo "manifest.json does not contain an extension version."
             exit 1
           fi
+          echo "version=$manifest_version" >> "$GITHUB_OUTPUT"
 
       - name: Build production side panel
         run: npm run build
@@ -58,7 +53,7 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
           tag="v$RELEASE_VERSION"
           if gh release view "$tag" >/dev/null 2>&1; then
