@@ -8,17 +8,19 @@ var storage = chrome.storage.local;
 
 function createActivityDataStatus() {
 	if (document.getElementById('chatDataStatus')) return;
+	const workSource = `https://www.connexus.com/webuser/dataview.aspx?idWebuser=${studentID}&idDataview=410`;
+	const courseSource = `https://www.connexus.com/activitytracker/default/weeksummary?idWebuser=${studentID}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
 	const panel = document.createElement('div');
 	panel.id = 'chatDataStatus';
 	panel.innerHTML = `
 		<div class="chat-data-status-title">CHAT is preparing attendance data</div>
-		<div class="chat-data-step" data-step="work"><span class="chat-data-icon">?</span><span><strong>Step 1</strong> · Download lesson and assessment data</span></div>
-		<div class="chat-data-step" data-step="course"><span class="chat-data-icon">?</span><span><strong>Step 2</strong> · Download course activity data</span></div>`;
+		<div class="chat-data-step" data-step="work"><span class="chat-data-icon">?</span><span class="chat-data-label"><strong>Step 1</strong> · Download lesson and assessment data</span><a class="chat-data-link" href="${workSource}" target="_blank" rel="noopener noreferrer" title="Open the lesson and assessment Data View" aria-label="Open the lesson and assessment Data View">↗</a></div>
+		<div class="chat-data-step" data-step="course"><span class="chat-data-icon">?</span><span class="chat-data-label"><strong>Step 2</strong> · Download course activity data</span><a class="chat-data-link" href="${courseSource}" target="_blank" rel="noopener noreferrer" title="Open the course activity source" aria-label="Open the course activity source">↗</a></div>`;
 	const style = document.createElement('style');
 	style.textContent = `
-		#chatDataStatus{position:fixed;right:22px;bottom:22px;z-index:9999;width:330px;padding:13px 15px;border:1px solid #d8c6d4;border-radius:8px;background:rgba(255,255,255,.97);box-shadow:0 10px 28px rgba(48,18,43,.2);font:14px/1.4 Arial,sans-serif;color:#32182e}
+		#chatDataStatus{margin-top:10px;padding-top:9px;border-top:1px solid #eadbe7;font:14px/1.4 Arial,sans-serif;color:#32182e}
 		.chat-data-status-title{margin-bottom:8px;font-weight:700;color:#722362}
-		.chat-data-step{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;column-gap:9px;padding:5px 0;color:#5f5860}.chat-data-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;line-height:1;border-radius:50%;background:#ece1e9;color:#722362;font-weight:700}
+		.chat-data-step{display:grid;grid-template-columns:20px minmax(0,1fr) 18px;align-items:start;column-gap:9px;padding:5px 0;color:#5f5860}.chat-data-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;line-height:1;border-radius:50%;background:#ece1e9;color:#722362;font-weight:700}.chat-data-link{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;color:#722362;font-size:18px;font-weight:700;line-height:1;text-decoration:none}.chat-data-link:hover{background:#f3eaf1}
 		.chat-data-step[data-state="complete"]{color:#287d37}.chat-data-step[data-state="complete"] .chat-data-icon{background:#2f9e44;color:#fff}.chat-data-step[data-state="error"]{color:#b43a3a}.chat-data-step[data-state="error"] .chat-data-icon{background:#b43a3a;color:#fff}`;
 	document.head.appendChild(style);
 	document.body.appendChild(panel);
@@ -32,7 +34,7 @@ function updateActivityDataStatus(step, status, message) {
 	if (status === 'complete') icon.textContent = '✓';
 	else if (status === 'error') icon.textContent = '!';
 	else icon.textContent = '?';
-	if (message) row.querySelector('span:last-child').innerHTML = `<strong>Step ${step === 'work' ? '1' : '2'}</strong> · ${message}`;
+	if (message) row.querySelector('.chat-data-label').innerHTML = `<strong>Step ${step === 'work' ? '1' : '2'}</strong> · ${message}`;
 }
 
 chrome.runtime.onMessage.addListener((request) => {
@@ -51,7 +53,6 @@ if (document.getElementById("startDate").getAttribute("Value") == null) {
 }
 
 if (pageState == "active") {
-	createActivityDataStatus();
 	// temporarily disable the approve buttton as the page loads\
 	if(document.querySelector('#btnApprove')) {
 		const approveBtn = document.querySelector('#btnApprove');
@@ -66,6 +67,7 @@ if (pageState == "active") {
 	// get the dates from the current page
 	var startDate = document.getElementById("startDate").value.toString();
 	var endDate = document.getElementById("endDate").value.toString();
+	createActivityDataStatus();
 	var cutDate = new Date(endDate);
 	cutDate.setTime(cutDate.getTime() - 6*(24*60*60*1000));
 	storage.set({globalStartDate: startDate, globalEndDate: endDate});
@@ -247,7 +249,9 @@ async function getWork() {
 
 function floatTotalDiv() {
 	var totalTimeDiv = document.getElementsByClassName("rollup-total")[0];
-	totalTimeDiv.setAttribute("style", "position: fixed; bottom: 45px; right: 3.5%; background: white; background: #ffffff; padding: 15px; text-align: left; border-style: solid; border-width: 2px; border-radius: 5px; border-color: #8c8c8c; box-shadow: rgba(0,0,0,0.2) 0px 1px 3px;");
+	totalTimeDiv.setAttribute("style", "position: fixed; bottom: 45px; right: 3.5%; z-index: 9999; width: 360px; background: #ffffff; padding: 15px; text-align: left; border-style: solid; border-width: 2px; border-radius: 5px; border-color: #8c8c8c; box-shadow: rgba(0,0,0,0.2) 0px 1px 3px;");
+	const statusPanel = document.getElementById('chatDataStatus');
+	if (statusPanel && statusPanel.parentNode !== totalTimeDiv) totalTimeDiv.appendChild(statusPanel);
 }
 
 function addCells(rowNumber, dateCount, currentDate) {
