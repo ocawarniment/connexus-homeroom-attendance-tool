@@ -156,28 +156,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // CAT Cleanup Messages
     if (request.type == "scrapeValue") {
-        //getWeaponUsage(request.weaponType).then( (results)=>{ sendResponse({results: results}); } );
-        chrome.tabs.create({url: request.url, active: false},(tab) => {
-            chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: (cssSelector) => {
-                    window.cssSelector = cssSelector;
-                },
-                args: [request.cssSelector]
-            }).then(() => {
-                return chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    files: ['js/services/waitAndScrape.js']
+        (async () => {
+            let workerWindow;
+            let tabId;
+            try {
+                if (request.hidden) {
+                    workerWindow = await chrome.windows.create({ url: request.url, type: 'popup', state: 'minimized', focused: false, width: 480, height: 320 });
+                    tabId = workerWindow.tabs?.[0]?.id;
+                } else {
+                    const tab = await chrome.tabs.create({ url: request.url, active: false });
+                    tabId = tab.id;
+                }
+                if (!tabId) throw new Error('Unable to create the data scrape workspace.');
+                await waitForTabLoad(tabId);
+                await chrome.scripting.executeScript({
+                    target: { tabId },
+                    func: (cssSelector) => { window.cssSelector = cssSelector; },
+                    args: [request.cssSelector]
                 });
-            }).then((result) => {
-                console.log(result);
+                const result = await chrome.scripting.executeScript({ target: { tabId }, files: ['js/services/waitAndScrape.js'] });
                 sendResponse(result[0].result);
-                chrome.tabs.remove(tab.id);
-            }).catch((error) => {
+            } catch (error) {
                 console.error('Script execution error:', error);
-                chrome.tabs.remove(tab.id);
-            });
-        })
+                sendResponse(null);
+            } finally {
+                if (workerWindow?.id) {
+                    try { await chrome.windows.remove(workerWindow.id); } catch (error) {}
+                } else if (tabId) {
+                    try { await chrome.tabs.remove(tabId); } catch (error) {}
+                }
+            }
+        })();
         return true; // keep connection open for async repionse
     } 
 
