@@ -1,8 +1,30 @@
 // Initialize chatLedger variable for service worker
 let chatLedger = null;
+let activeSectionDownload = null;
 chrome.storage.local.get(null, result => {
-    chatLedger = result.chatLedger;
+    chatLedger = materializeLedgerAliases(result.chatLedger);
+    if (chatLedger !== result.chatLedger) chrome.storage.local.set({ chatLedger });
 })
+
+// Ledger aliases let schools share an identical configuration without creating
+// separate copies that can drift. Storage always receives the complete object.
+function materializeLedgerAliases(ledger) {
+    if (!ledger || typeof ledger !== 'object') return ledger;
+    const aliases = Object.entries(ledger).filter(([, value]) => value?.copyFrom);
+    if (!aliases.length) return ledger;
+
+    const expandedLedger = { ...ledger };
+    aliases.forEach(([school, alias]) => {
+        const source = ledger[alias.copyFrom];
+        if (!source) {
+            console.warn(`CHAT Ledger alias "${school}" references missing school "${alias.copyFrom}".`);
+            return;
+        }
+        const { copyFrom, ...overrides } = alias;
+        expandedLedger[school] = { ...JSON.parse(JSON.stringify(source)), ...overrides, name: school };
+    });
+    return expandedLedger;
+}
 
 chrome.runtime.onInstalled.addListener(function(details){
     if(details.reason == "install"){
@@ -39,56 +61,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // sections w/o overdue lessons for non hr teachers
     if (request.type == "getRoster") {
-        chrome.storage.local.get(null,function(result){
-            chrome.tabs.create({ url: 'https://www.connexus.com/lmu/sections/webusers.aspx?idSection=' + request.sectionId, active: true}, function(tab) {
-                // execute the download homeroom external script on the new tab
-                chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    files: ['/js/connexus/sections/getRoster.js']
-                });
+        startSectionDownload(request.sectionId)
+            .then(() => sendResponse({ started: true }))
+            .catch(error => {
+                console.error('Unable to start section download:', error);
+                updateDownloadProgress({ status: 'error', message: 'Unable to start the section download.' });
+                sendResponse({ started: false, error: error.message });
             });
-        });
-    };
+        return true;
+    }
 
-    // get truancy info for ALL students
-    if(request.type == 'getTruancyDetails') {
-        (async()=>{
-            // all students or single student
-            if(request.studentId == 'all') {
-                // get the student IDs from the storage.students obj
-                chrome.storage.local.get(null, async (result) => {
-                    // local store students
-                    let students = result.students;
-                    // loop through each student and execute the script
-                    let studentIds = Object.keys(students);
-                    let i=0;
-                    do{
-                        // runn async 
-                        console.log(`loop ${i} for ${studentIds[i]}`);
-                        await getTruancy(studentIds[i]);
-                        i++;
-                    }while( i<studentIds.length );
-                    // get overdues if setting AND only for OCA
-                    if(result.userSettings.completionMetric == 'overdue' && result.userSettings.school == 'oca') {
-                        chrome.tabs.create({ url: 'https://www.connexus.com/sectionsandstudents#/mystudents/' + result.currentApproval.sectionId, active: true }, function(tab) {
-                            // execute the get work script on the opened tab
-                            chrome.scripting.executeScript({
-                                target: { tabId: tab.id },
-                                files: ['/js/connexus/myStudents/getOverdue.js']
-                            });
-                        });
-                    } else {
-                        // notify completion
-                        chrome.notifications.create({
-                            type: 'basic',
-                            iconUrl: '/images/icon.png',
-                            title: 'CHAT Extension',
-                            message: 'Section download complete!'
-                        });
-                    }
-                })
-            }
-        })();
+    if (request.type === 'rosterScrapeComplete') {
+        startTruancyDownload().catch(error => finishSectionDownload('error', error.message));
+    }
+
+    if (request.type === 'truancyScrapeComplete' && activeSectionDownload) {
+        completeCurrentStudent(request).catch(error => finishSectionDownload('error', error.message));
+    }
+
+    if (request.type === 'sectionDownloadError' && activeSectionDownload) {
+        finishSectionDownload('error', request.message || 'The section could not be downloaded.');
+    }
+
+    if (request.type === 'cancelSectionDownload') {
+        finishSectionDownload('cancelled', 'Download stopped. You can restart it at any time.')
+            .then(() => sendResponse({ cancelled: true }));
+        return true;
     }
 
     // CAT Cleanup Messages
@@ -521,7 +519,7 @@ function updateChatLedger(){
                 let currentVersion = result.chatLedger?.version || 'unknown';
                 let newVersion = data.version || 'unknown';
                 
-                chrome.storage.local.set({chatLedger: data});
+                chrome.storage.local.set({chatLedger: materializeLedgerAliases(data)});
                 
                 // Show notification about the update
                 chrome.notifications.create({
@@ -545,36 +543,164 @@ function updateChatLedger(){
         });
 }
 
-async function getTruancy(studentId){
-    return new Promise((studentResolve, reject) => {
-        chrome.storage.local.get(null,  (result) => {
-            let students = result.students;
-            let student = students[studentId];
-            let dvUrl = 'https://www.connexus.com/dataview/' + result.chatLedger[result.userSettings.school].truancyDataView.id + '?idWebuser=' + student.id;
-            console.log(dvUrl);
-            chrome.tabs.create({ url: dvUrl, active: false}, (tab) => {
-                // execute the get truancy values script at the document end
-                chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    files: ['/js/connexus/dataview/getTruancy.js']
-                }).then(async emptyPromise => {
-    
-                    // Create a promise that resolves when chrome.runtime.onMessage fires
-                    const message = new Promise(resolve => {
-                        const listener = request => {
-                            chrome.runtime.onMessage.removeListener(listener);
-                            resolve(request);
-                        };
-                        chrome.runtime.onMessage.addListener(listener);
-                    });
-            
-                    const result = await message;
-                    //console.log(result); // Logs true
-                    studentResolve(result);
-                });
-            });
-        })
-    })
+function updateDownloadProgress(progress) {
+    return chrome.storage.local.set({
+        downloadProgress: {
+            updatedAt: Date.now(),
+            ...progress
+        }
+    });
+}
+
+async function startSectionDownload(sectionId) {
+    if (activeSectionDownload) {
+        await finishSectionDownload('cancelled', 'A new section download was started.');
+    }
+
+    await updateDownloadProgress({
+        status: 'preparing',
+        completed: 0,
+        total: 0,
+        message: 'Opening the secure download workspace…'
+    });
+
+    const workerWindow = await chrome.windows.create({
+        url: `https://www.connexus.com/lmu/sections/webusers.aspx?idSection=${encodeURIComponent(sectionId)}`,
+        type: 'popup',
+        state: 'minimized',
+        focused: false
+    });
+    const workerTab = workerWindow.tabs[0];
+    activeSectionDownload = {
+        windowId: workerWindow.id,
+        tabId: workerTab.id,
+        studentIds: [],
+        currentIndex: 0
+    };
+
+    await updateDownloadProgress({
+        status: 'roster',
+        completed: 0,
+        total: 0,
+        message: 'Reading the section roster…'
+    });
+    await chrome.scripting.executeScript({
+        target: { tabId: workerTab.id },
+        files: ['/js/connexus/sections/getRoster.js']
+    });
+}
+
+async function startTruancyDownload() {
+    if (!activeSectionDownload) return;
+    const { students = {}, userSettings = {} } = await chrome.storage.local.get(['students', 'userSettings']);
+    activeSectionDownload.studentIds = Object.keys(students);
+    activeSectionDownload.currentIndex = 0;
+
+    if (!activeSectionDownload.studentIds.length) {
+        await finishSectionDownload('complete', 'No active students were found in this section.');
+        return;
+    }
+
+    await updateDownloadProgress({
+        status: 'downloading',
+        completed: 0,
+        total: activeSectionDownload.studentIds.length,
+        message: `Downloading 0 of ${activeSectionDownload.studentIds.length} student records…`
+    });
+    await loadNextStudent();
+}
+
+async function loadNextStudent() {
+    if (!activeSectionDownload) return;
+    const { studentIds, currentIndex, tabId } = activeSectionDownload;
+    if (currentIndex >= studentIds.length) {
+        await finishSectionDownload('complete', 'Section download complete.');
+        return;
+    }
+
+    const studentId = studentIds[currentIndex];
+    const { students = {}, chatLedger: ledger, userSettings = {} } = await chrome.storage.local.get(['students', 'chatLedger', 'userSettings']);
+    const dataViewId = ledger?.[userSettings.school]?.truancyDataView?.id;
+    const student = students[studentId];
+    if (!student || !dataViewId) throw new Error('The student data-view configuration is unavailable.');
+
+    const pageLoaded = waitForTabComplete(tabId);
+    await chrome.tabs.update(tabId, {
+        url: `https://www.connexus.com/dataview/${dataViewId}?idWebuser=${encodeURIComponent(student.id)}`,
+        active: false
+    });
+    await pageLoaded;
+    scheduleStudentTimeout(studentId);
+    await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['/js/connexus/dataview/getTruancy.js']
+    });
+}
+
+function scheduleStudentTimeout(studentId) {
+    if (!activeSectionDownload) return;
+    clearTimeout(activeSectionDownload.studentTimeout);
+    activeSectionDownload.studentTimeout = setTimeout(() => {
+        if (activeSectionDownload?.studentIds[activeSectionDownload.currentIndex] === studentId) {
+            finishSectionDownload('error', `Student ${activeSectionDownload.currentIndex + 1} did not respond in time. Check Connexus access, then retry the download.`);
+        }
+    }, 45000);
+}
+
+function waitForTabComplete(tabId, timeout = 30000) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(listener);
+            reject(new Error('Timed out waiting for Connexus to load.'));
+        }, timeout);
+        const listener = (updatedTabId, changeInfo) => {
+            if (updatedTabId === tabId && changeInfo.status === 'complete') {
+                clearTimeout(timer);
+                chrome.tabs.onUpdated.removeListener(listener);
+                resolve();
+            }
+        };
+        chrome.tabs.onUpdated.addListener(listener);
+    });
+}
+
+async function completeCurrentStudent(request) {
+    if (!activeSectionDownload) return;
+    const expectedId = activeSectionDownload.studentIds[activeSectionDownload.currentIndex];
+    if (request.studentId !== expectedId) return;
+    clearTimeout(activeSectionDownload.studentTimeout);
+
+    const { students = {} } = await chrome.storage.local.get('students');
+    if (students[request.studentId] && request.student) {
+        students[request.studentId] = { ...students[request.studentId], ...request.student, dataDownloaded: true };
+        await chrome.storage.local.set({ students });
+    }
+
+    activeSectionDownload.currentIndex += 1;
+    const { currentIndex, studentIds } = activeSectionDownload;
+    await updateDownloadProgress({
+        status: 'downloading',
+        completed: currentIndex,
+        total: studentIds.length,
+        message: `Downloading ${currentIndex} of ${studentIds.length} student records…`
+    });
+    await loadNextStudent();
+}
+
+async function finishSectionDownload(status, message) {
+    const download = activeSectionDownload;
+    activeSectionDownload = null;
+    clearTimeout(download?.studentTimeout);
+    if (download?.windowId) {
+        try { await chrome.windows.remove(download.windowId); } catch (error) { console.warn('Download workspace was already closed.', error); }
+    }
+    const { downloadProgress = {} } = await chrome.storage.local.get('downloadProgress');
+    await updateDownloadProgress({ ...downloadProgress, status, message });
+    if (status === 'complete') {
+        chrome.notifications.create({
+            type: 'basic', iconUrl: '/images/icon.png', title: 'CHAT Extension', message
+        });
+    }
 }
 
 
@@ -587,7 +713,7 @@ function initInstall() {
         fetch("chatLedger.json")
             .then(response => response.json())
             .then(data => {
-                chrome.storage.local.set({chatLedger: data});
+                chrome.storage.local.set({chatLedger: materializeLedgerAliases(data)});
             })
             .catch(error => {
                 console.error('Error loading local chat ledger:', error);
@@ -599,6 +725,7 @@ function initInstall() {
         'approvalWindowWeeks': 1,
         'school': 'oca',
         'channel': 'stable',
+        'appearanceMode': 'light',
         'approvalWindowWeeks': 1
     }
     let currentApproval = {
@@ -779,7 +906,7 @@ function setDebugStudents(){
                     "totalRequired":77
                 }
             }
-        } else if(result.userSettings.school == 'grca'){
+        } else if(['grca', 'ohbca'].includes(result.userSettings.school)){
             let students = {
                 "STDEBUG1": {
                     "attendanceMetric":1.5,

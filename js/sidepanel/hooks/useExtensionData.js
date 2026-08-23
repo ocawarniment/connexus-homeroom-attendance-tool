@@ -7,8 +7,8 @@ export const useExtensionData = () => {
   // Listen for storage changes to keep data in sync
   useEffect(() => {
     const handleStorageChange = (changes) => {
-      if (changes.chatLedger || changes.userSettings || changes.students || changes.currentApproval || changes.sectionName) {
-        refreshData();
+      if (changes.chatLedger || changes.userSettings || changes.students || changes.currentApproval || changes.sectionName || changes.downloadProgress) {
+        refreshData(false);
       }
     };
 
@@ -19,9 +19,9 @@ export const useExtensionData = () => {
     };
   }, []);
 
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       
       // Get data from Chrome storage
       const result = await chrome.storage.local.get(null);
@@ -37,7 +37,8 @@ export const useExtensionData = () => {
         userSettings: result.userSettings || {},
         chatLedger: result.chatLedger || {},
         currentApproval: result.currentApproval || {},
-        sectionName: result.sectionName || null
+        sectionName: result.sectionName || null,
+        downloadProgress: result.downloadProgress || { status: 'idle' }
       };
       
       setChatData(newChatData);
@@ -49,10 +50,11 @@ export const useExtensionData = () => {
         userSettings: {},
         chatLedger: {},
         currentApproval: {},
-        sectionName: null
+        sectionName: null,
+        downloadProgress: { status: 'idle' }
       });
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, []);
 
@@ -66,7 +68,8 @@ export const useExtensionData = () => {
       if (sectionId === 'DEBUG') {
         chrome.runtime.sendMessage({ type: 'getDebugRoster' });
       } else {
-        chrome.runtime.sendMessage({ type: 'getRoster', sectionId });
+      const response = await chrome.runtime.sendMessage({ type: 'getRoster', sectionId });
+      if (!response?.started) throw new Error(response?.error || 'Unable to start the section download.');
       }
       
       // Store last sync timestamp
@@ -105,6 +108,16 @@ export const useExtensionData = () => {
     chrome.tabs.create({ url, active: true });
   }, [chatData]);
 
+  const cancelDownload = useCallback(async () => {
+    try {
+      await chrome.runtime.sendMessage({ type: 'cancelSectionDownload' });
+      return true;
+    } catch (error) {
+      console.error('Error cancelling section download:', error);
+      return false;
+    }
+  }, []);
+
   const updateSettings = useCallback(async (newSettings) => {
     try {
       const currentSettings = chatData?.userSettings || {};
@@ -129,6 +142,7 @@ export const useExtensionData = () => {
     chatData,
     loading,
     downloadSection,
+    cancelDownload,
     approveAttendance,
     updateSettings,
     refreshData

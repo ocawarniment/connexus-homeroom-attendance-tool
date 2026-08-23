@@ -26,6 +26,8 @@ import '../../services/algorithm';
 const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedger, onApprove, index }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
+  // A newly scraped roster sets this false; cached rosters remain usable until refreshed.
+  const isPendingDownload = student.dataDownloaded === false;
 
   const decryptName = (encryptedName) => {
     try {
@@ -182,12 +184,16 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
         hover
         sx={{ 
           '&:nth-of-type(odd)': { backgroundColor: 'action.hover' },
-          '&:hover': { backgroundColor: 'action.selected' },
-          height: 32
+          '&:hover': { backgroundColor: isPendingDownload ? 'rgba(100, 100, 100, .12)' : 'rgba(114, 35, 98, .08)' },
+          height: 32,
+          opacity: isPendingDownload ? 0.46 : 1,
+          filter: isPendingDownload ? 'grayscale(.72)' : 'none',
+          transition: 'opacity 180ms ease, filter 180ms ease, background-color 180ms ease',
+          ...(isPendingDownload && { backgroundColor: 'rgba(109, 109, 109, .09)' })
         }}
       >
         {displayFields.map(field => (
-          <TableCell key={field.field} sx={{ py: 0.25, px: 1, fontSize: '0.75rem' }}>
+          <TableCell key={field.field} sx={{ py: 0.25, px: 1, fontSize: '0.75rem', color: isPendingDownload ? 'rgba(52, 33, 47, .62)' : 'inherit' }}>
             {renderCell(field)}
           </TableCell>
         ))}

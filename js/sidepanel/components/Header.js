@@ -21,20 +21,23 @@ const Header = ({ school, onSettingsClick }) => {
       position="static"
       elevation={1}
       sx={{
-        backgroundColor: '#722361',
-        borderRadius: '0 0 8px 8px',
-        mb: 1
+        background: 'linear-gradient(118deg, #3d1235 0%, #722362 58%, #521948 100%)',
+        borderRadius: '0 0 6px 6px',
+        boxShadow: '0 8px 24px rgba(114, 35, 98, 0.25)',
+        mb: 1,
+        overflow: 'hidden',
+        '&::after': { content: '""', position: 'absolute', inset: 0, background: 'linear-gradient(115deg, rgba(255,255,255,.19), transparent 38%)', pointerEvents: 'none' }
       }}
     >
-      <Toolbar variant="dense" sx={{ minHeight: '40px !important', px: 2 }}>
+      <Toolbar variant="dense" sx={{ minHeight: '48px !important', px: 1.5 }}>
         <Avatar
           src={getSchoolLogo(school)}
           alt={`${school?.toUpperCase() || 'School'} Logo`}
-          sx={{ width: 24, height: 24, mr: 1 }}
+          sx={{ width: 28, height: 28, mr: 1, border: '1px solid rgba(255,255,255,.35)' }}
         />
 
         <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="subtitle1" component="h1" fontWeight={600} sx={{ lineHeight: 1.2 }}>
+          <Typography variant="subtitle1" component="h1" fontWeight={750} sx={{ lineHeight: 1.2, letterSpacing: '-0.02em', fontSize: '0.92rem' }}>
             CHAT - Connexus Homeroom Attendance Tool
           </Typography>
         </Box>

@@ -90,23 +90,19 @@ function getTruancy(){
 			// set the extra val
 			//homeroomArray[`ST${studentId}`].lessonTimeAlignment = -1 * homeroomArray[`ST${studentId}`].lessonsBehind - homeroomArray[`ST${studentId}`].netHours;
 			
-			// all student vars are set; pass it back to storage
-			storage.set({'students': homeroomArray});
-			//chrome.runtime.sendMessage({type: 'getTruancy', first: false, completedID: studentId});
-			chrome.runtime.sendMessage(result, function (response) {
-				console.log(response); // Logs 'true'
-			})
-
-			window.close();
+			// The minimized worker tab is reused for the next student. Send only this
+			// student's values so the background script can merge them safely.
+			chrome.runtime.sendMessage({
+				type: 'truancyScrapeComplete',
+				studentId: `ST${studentId}`,
+				student: homeroomArray[`ST${studentId}`]
+			});
 			
 		} else {
-			// skipp that student
-			//chrome.runtime.sendMessage({type: 'getTruancy', first: false, completedID: studentId});
-			chrome.runtime.sendMessage(result, function (response) {
-				console.log(response); // Logs 'true'
-			})
+			// Access-denied pages still complete the queue; leave the existing values intact.
+			const studentId = location.href.match(/(?<=idWebuser=).*/g)[0];
+			chrome.runtime.sendMessage({ type: 'truancyScrapeComplete', studentId: `ST${studentId}` });
 			bgConsole.log('error');
-			window.close();
 		}
 	})
 }

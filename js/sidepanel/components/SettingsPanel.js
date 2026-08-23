@@ -34,13 +34,15 @@ import {
   ViewColumn as ColumnIcon,
   Subject as SubjectIcon,
   KeyboardArrowUp as ArrowUpIcon,
-  KeyboardArrowDown as ArrowDownIcon
+  KeyboardArrowDown as ArrowDownIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon
 } from '@mui/icons-material';
 
 const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSettings, onRefreshData }) => {
   const [settings, setSettings] = useState({});
   const [approvalWindow, setApprovalWindow] = useState(2);
-  const [extensionVersion, setExtensionVersion] = useState('2.0.1');
+  const [extensionVersion, setExtensionVersion] = useState('4.0.0');
   const [chatLedgerVersion, setChatLedgerVersion] = useState('Loading...');
   const [developerModeClickCount, setDeveloperModeClickCount] = useState(0);
   const [isDeveloperMode, setIsDeveloperMode] = useState(false);
@@ -64,7 +66,7 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
     fetch('./manifest.json')
       .then(response => response.json())
       .then(manifest => {
-        setExtensionVersion(manifest.version || '2.0.1');
+        setExtensionVersion(manifest.version || '4.0.0');
       })
       .catch(error => {
         console.error('Error loading manifest:', error);
@@ -149,6 +151,13 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
     onUpdateSettings(newSettings);
   };
 
+  const handleAppearanceChange = (_, appearanceMode) => {
+    if (!appearanceMode) return;
+    const newSettings = { ...settings, appearanceMode };
+    setSettings(newSettings);
+    onUpdateSettings(newSettings);
+  };
+
   const handleAboutIconClick = () => {
     const newCount = developerModeClickCount + 1;
     setDeveloperModeClickCount(newCount);
@@ -229,6 +238,28 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
         </Box>
 
         <Stack spacing={1.5}>
+          <Card elevation={1}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.8rem', mb: 1 }}>
+                Appearance
+              </Typography>
+              <ToggleButtonGroup
+                exclusive
+                fullWidth
+                size="small"
+                value={settings.appearanceMode || 'light'}
+                onChange={handleAppearanceChange}
+                aria-label="Appearance mode"
+              >
+                <ToggleButton value="dark" aria-label="Dark chalkboard mode">
+                  <DarkModeIcon sx={{ fontSize: 15, mr: 0.5 }} /> Chalkboard
+                </ToggleButton>
+                <ToggleButton value="light" aria-label="Light whiteboard mode">
+                  <LightModeIcon sx={{ fontSize: 15, mr: 0.5 }} /> Whiteboard
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </CardContent>
+          </Card>
           {/* About Section */}
           <Card elevation={1}>
             <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -356,14 +387,14 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
               </Box>
               
               <Link
-                href="https://docs.google.com/document/d/1DL0lgLSLl7N3Rut7me5ucpvEM8-I-Vgdz587ZmleN_U/edit#heading=h.c818bjawl1ng"
+                href="https://ocawarniment.github.io/connexus-homeroom-attendance-tool/"
                 target="_blank"
                 rel="noopener noreferrer"
                 sx={{ display: 'flex', alignItems: 'center', gap: 0.5, textDecoration: 'none' }}
               >
                 <DocumentIcon sx={{ fontSize: 14, color: 'primary.main' }} />
                 <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                  Frequently Asked Questions
+                  CHAT Reference Manual
                 </Typography>
               </Link>
             </CardContent>
@@ -389,6 +420,7 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
               >
                 <ToggleButton value="oca">OCA</ToggleButton>
                 <ToggleButton value="grca">GRCA</ToggleButton>
+                <ToggleButton value="ohbca">OHBCA</ToggleButton>
               </ToggleButtonGroup>
             </CardContent>
           </Card>

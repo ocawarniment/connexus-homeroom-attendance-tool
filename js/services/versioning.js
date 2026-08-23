@@ -34,7 +34,12 @@ function updateChatLedger(bypass){
                             message: `Updated from version ${currentVersion} to ${newVersion}.`
                         });
                     }
-                    chrome.storage.local.set({chatLedger: data});
+                    const grcaConfig = data.ohbca?.copyFrom ? data[data.ohbca.copyFrom] : null;
+                    const { copyFrom, ...ohbcaOverrides } = data.ohbca || {};
+                    const expandedLedger = grcaConfig
+                        ? { ...data, ohbca: { ...JSON.parse(JSON.stringify(grcaConfig)), ...ohbcaOverrides, name: 'ohbca' } }
+                        : data;
+                    chrome.storage.local.set({chatLedger: expandedLedger});
                     refreshVersionNumbers();
                 }
             });

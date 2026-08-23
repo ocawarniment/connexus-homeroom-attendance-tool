@@ -10,61 +10,52 @@ import { useExtensionData } from './hooks/useExtensionData';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#667eea',
-      light: '#9bb5ff',
-      dark: '#3f51b5',
+      main: '#722362',
+      light: '#925180',
+      dark: '#3d1235',
     },
     secondary: {
-      main: '#764ba2',
-      light: '#a478d4',
-      dark: '#4a2c73',
+      main: '#5b1c4e',
+      light: '#7d396c',
+      dark: '#2b0d26',
     },
     background: {
-      default: '#f8fafc',
+      default: '#fbf7fa',
       paper: '#ffffff',
     },
   },
   typography: {
-    fontFamily: '"Onest", sans-serif',
-    h1: { fontFamily: '"Onest", sans-serif' },
-    h2: { fontFamily: '"Onest", sans-serif' },
-    h3: { fontFamily: '"Onest", sans-serif' },
-    h4: { fontFamily: '"Onest", sans-serif' },
-    h5: { fontFamily: '"Onest", sans-serif', fontWeight: 600 },
-    h6: { fontFamily: '"Onest", sans-serif', fontWeight: 600 },
-    subtitle1: { fontFamily: '"Onest", sans-serif' },
-    subtitle2: { fontFamily: '"Onest", sans-serif' },
-    body1: { fontFamily: '"Onest", sans-serif' },
-    body2: { fontFamily: '"Onest", sans-serif' },
-    button: { fontFamily: '"Onest", sans-serif' },
-    caption: { fontFamily: '"Onest", sans-serif' },
-    overline: { fontFamily: '"Onest", sans-serif' },
+    fontFamily: '"Avenir Next", Avenir, "Century Gothic", ui-sans-serif, system-ui, sans-serif',
+    h5: { fontWeight: 700 },
+    h6: { fontWeight: 700 },
     allVariants: {
-      fontFamily: '"Onest", sans-serif',
+      fontFamily: '"Avenir Next", Avenir, "Century Gothic", ui-sans-serif, system-ui, sans-serif',
     }
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 6,
   },
   components: {
     MuiCssBaseline: {
       styleOverrides: {
         '*': {
-          fontFamily: '"Onest", sans-serif !important',
+          fontFamily: 'inherit',
         },
         'html': {
-          fontFamily: '"Onest", sans-serif !important',
+          fontFamily: 'inherit',
         },
         'body': {
-          fontFamily: '"Onest", sans-serif !important',
+          fontFamily: 'inherit',
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06)',
-          fontFamily: '"Onest", sans-serif',
+          backgroundColor: 'rgba(255, 255, 255, 0.64)',
+          boxShadow: '0 12px 30px rgba(114, 35, 98, 0.10)',
+          border: '1px solid rgba(255, 255, 255, 0.78)',
+          backdropFilter: 'blur(10px)',
         },
       },
     },
@@ -73,41 +64,30 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 500,
-          fontFamily: '"Onest", sans-serif',
         },
       },
     },
     MuiTypography: {
       styleOverrides: {
         root: {
-          fontFamily: '"Onest", sans-serif',
         },
       },
     },
     MuiTextField: {
       styleOverrides: {
         root: {
-          fontFamily: '"Onest", sans-serif',
-          '& .MuiInputBase-input': {
-            fontFamily: '"Onest", sans-serif',
-          },
-          '& .MuiInputLabel-root': {
-            fontFamily: '"Onest", sans-serif',
-          },
         },
       },
     },
     MuiTableCell: {
       styleOverrides: {
         root: {
-          fontFamily: '"Onest", sans-serif',
         },
       },
     },
     MuiChip: {
       styleOverrides: {
         root: {
-          fontFamily: '"Onest", sans-serif',
         },
       },
     },
@@ -120,6 +100,7 @@ const App = () => {
     chatData, 
     loading, 
     downloadSection, 
+    cancelDownload,
     approveAttendance,
     updateSettings,
     refreshData 
@@ -171,20 +152,35 @@ const App = () => {
     );
   }
 
+  const isLightMode = (chatData?.userSettings?.appearanceMode || 'light') === 'light';
+  const boardBackground = isLightMode
+    ? {
+        backgroundColor: '#f0f2ef',
+        backgroundImage: 'radial-gradient(ellipse 68% 45% at 28% 22%, rgba(114, 123, 118, .17) 0%, rgba(114, 123, 118, .08) 42%, transparent 74%), radial-gradient(ellipse 62% 51% at 78% 42%, rgba(122, 132, 126, .14) 0%, rgba(122, 132, 126, .06) 48%, transparent 77%), radial-gradient(ellipse 74% 30% at 42% 88%, rgba(141, 148, 143, .13) 0%, transparent 70%), linear-gradient(165deg, #ffffff 0%, #f0f2ef 52%, #e6e9e5 100%)',
+        backgroundSize: 'auto, auto, auto, auto'
+      }
+    : {
+        backgroundColor: '#102522',
+        backgroundImage: 'radial-gradient(ellipse 68% 45% at 28% 22%, rgba(223, 235, 226, .14) 0%, rgba(223, 235, 226, .055) 42%, transparent 74%), radial-gradient(ellipse 62% 51% at 78% 42%, rgba(233, 241, 233, .12) 0%, rgba(233, 241, 233, .045) 48%, transparent 77%), radial-gradient(ellipse 74% 30% at 42% 88%, rgba(222, 234, 225, .10) 0%, transparent 70%), linear-gradient(135deg, #173530 0%, #0d211e 52%, #102824 100%)',
+        backgroundSize: 'auto, auto, auto, auto'
+      };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
+      <Box className={isLightMode ? 'sidepanel light-mode' : 'sidepanel dark-mode'} sx={{ height: '100vh', minHeight: '100vh', pb: 2, position: 'relative', overflow: 'hidden', ...boardBackground, '& > :not(.chalk-tray):not(.board-fade)': { position: 'relative', zIndex: 1 } }}>
         <Header 
           school={chatData?.userSettings?.school}
           onSettingsClick={() => setSettingsOpen(true)}
         />
         
-        <Box sx={{ px: 1, pb: 1 }}>
+        <Box sx={{ px: 1, pb: 1, minHeight: 0, overflow: 'hidden' }}>
           <DownloadSection 
             currentApproval={chatData?.currentApproval || {}}
             userSettings={chatData?.userSettings || {}}
+            downloadProgress={chatData?.downloadProgress || { status: 'idle' }}
             onDownload={downloadSection}
+            onCancel={cancelDownload}
           />
           
           <StudentTable 
@@ -204,6 +200,8 @@ const App = () => {
           onUpdateSettings={updateSettings}
           onRefreshData={refreshData}
         />
+        <Box className="board-fade" aria-hidden="true" />
+        <Box className="chalk-tray" aria-hidden="true" />
       </Box>
     </ThemeProvider>
   );

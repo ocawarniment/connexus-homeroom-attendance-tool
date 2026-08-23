@@ -9,16 +9,19 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  LinearProgress,
+  Button,
   Stack
 } from '@mui/material';
 import {
   Download as DownloadIcon,
   CalendarToday as CalendarIcon,
   Refresh as RefreshIcon,
-  Schedule as ScheduleIcon
+  Schedule as ScheduleIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 
-const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
+const DownloadSection = ({ currentApproval, userSettings, downloadProgress, onDownload, onCancel }) => {
   const [sectionId, setSectionId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -33,6 +36,10 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
       setManualDateMode(currentApproval.manualDateMode || false);
     }
   }, [currentApproval]);
+
+  useEffect(() => {
+    setIsDownloading(['preparing', 'roster', 'downloading'].includes(downloadProgress?.status));
+  }, [downloadProgress?.status]);
 
   const calculateAutoDateRange = (windowWeeks) => {
     const todayDate = new Date();
@@ -161,7 +168,7 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
     setIsDownloading(true);
     try {
       await onDownload(sectionId, finalStartDate, finalEndDate);
-    } finally {
+    } catch (error) {
       setIsDownloading(false);
     }
   };
@@ -172,6 +179,11 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
   };
 
   const windowWeeks = userSettings?.approvalWindowWeeks || 2;
+  const progressActive = ['preparing', 'roster', 'downloading'].includes(downloadProgress?.status);
+  const canRetry = ['error', 'cancelled'].includes(downloadProgress?.status);
+  const progressValue = downloadProgress?.total
+    ? Math.round((downloadProgress.completed / downloadProgress.total) * 100)
+    : 0;
 
   return (
     <Card 
@@ -179,12 +191,37 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
       sx={{ 
         mb: 1,
         borderRadius: 1,
-        backgroundColor: '#f5f5f5',
-        color: '#333'
+        background: 'linear-gradient(135deg, rgba(255,255,255,.82), rgba(255,242,249,.66))',
+        color: '#34212f'
       }}
     >
       <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
         <Stack spacing={1}>
+          {progressActive && (
+            <Box sx={{ px: 0.5, pt: 0.25 }} aria-live="polite">
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: '#722362' }}>
+                  {downloadProgress.message || 'Preparing secure download…'}
+                </Typography>
+                {downloadProgress.total > 0 && (
+                  <Typography variant="caption" color="text.secondary">{progressValue}%</Typography>
+                )}
+              </Box>
+              <LinearProgress
+                variant={downloadProgress.total ? "determinate" : "indeterminate"}
+                value={progressValue}
+                sx={{ height: 6, borderRadius: 99, backgroundColor: '#f1dce9', '& .MuiLinearProgress-bar': { borderRadius: 99, background: 'linear-gradient(90deg, #722362, #3d1235)' } }}
+              />
+            </Box>
+          )}
+          {canRetry && (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: 0.5 }} aria-live="polite">
+              <Typography variant="caption" color={downloadProgress.status === 'error' ? 'error.main' : 'text.secondary'}>
+                {downloadProgress.message}
+              </Typography>
+              <Button size="small" onClick={handleDownload} sx={{ flexShrink: 0, minWidth: 0, fontSize: '0.7rem' }}>Retry</Button>
+            </Box>
+          )}
           {/* First Row: Section ID, Start, End, Download */}
           <Stack direction="row" spacing={0.5} alignItems="center">
             <TextField
@@ -201,7 +238,7 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
                   fontSize: '0.7rem',
                   '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.23)' },
                   '&:hover fieldset': { borderColor: 'rgba(0, 0, 0, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#722361' },
+                  '&.Mui-focused fieldset': { borderColor: '#722362' },
                   '& input': { padding: '4px 10px' }
                 },
                 '& .MuiInputLabel-root': { 
@@ -231,7 +268,7 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
                   fontSize: '0.7rem',
                   '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.23)' },
                   '&:hover fieldset': { borderColor: 'rgba(0, 0, 0, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#722361' },
+                  '&.Mui-focused fieldset': { borderColor: '#722362' },
                   '& input': { padding: '4px 10px' }
                 },
                 '& .MuiInputLabel-root': { 
@@ -258,7 +295,7 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
                   fontSize: '0.7rem',
                   '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.23)' },
                   '&:hover fieldset': { borderColor: 'rgba(0, 0, 0, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#722361' },
+                  '&.Mui-focused fieldset': { borderColor: '#722362' },
                   '& input': { padding: '4px 10px' }
                 },
                 '& .MuiInputLabel-root': { 
@@ -269,18 +306,19 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
               }}
             />
 
+            <Tooltip title={isDownloading ? 'Stop download' : 'Download section'}>
             <IconButton
-              onClick={handleDownload}
-              disabled={isDownloading || !sectionId}
+              onClick={isDownloading ? onCancel : handleDownload}
+              disabled={!isDownloading && !sectionId}
               sx={{
-                backgroundColor: '#722361',
+                background: 'linear-gradient(135deg, #722362, #3d1235)',
                 color: 'white',
-                border: '1px solid #722361',
+                border: '1px solid rgba(255,255,255,.45)',
                 width: 28,
                 height: 28,
                 flexShrink: 0,
                 '&:hover': {
-                  backgroundColor: '#5a1c4d',
+                  background: 'linear-gradient(135deg, #4f1844, #2b0d26)',
                 },
                 '&:disabled': {
                   backgroundColor: 'rgba(114, 35, 97, 0.3)',
@@ -289,8 +327,9 @@ const DownloadSection = ({ currentApproval, userSettings, onDownload }) => {
                 ml: 'auto'
               }}
             >
-              {isDownloading ? <CircularProgress size={12} color="inherit" /> : <DownloadIcon sx={{ fontSize: 14 }} />}
+              {isDownloading ? <CloseIcon sx={{ fontSize: 15 }} /> : <DownloadIcon sx={{ fontSize: 14 }} />}
             </IconButton>
+            </Tooltip>
           </Stack>
 
           {/* Second Row: Last Sync and Mode Pill */}

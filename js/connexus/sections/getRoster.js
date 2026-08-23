@@ -27,8 +27,7 @@ function getRoster() {
 				if (loopCount <= 10) {
 					checkLoad(elementID);
 				} else {
-					alert('It appears there is an issue with your internet connection. Please try again later!');
-					chrome.runtime.sendMessage({ type: 'closeTab' });
+					chrome.runtime.sendMessage({ type: 'sectionDownloadError', message: 'Connexus did not finish loading the roster. Please try again.' });
 				}
 			} else {
 				// found it! lets get it	
@@ -83,7 +82,7 @@ function getRoster() {
 					// If theres an error end
 					try {
 						var checkError = document.getElementById('saveButton').innerText;
-						if (checkError.indexOf('Error') !== -1) { alert("No section exists with that ID! Please review the Homeroom ID."); chrome.runtime.sendMessage({ type: 'closeTab' }); }
+						if (checkError.indexOf('Error') !== -1) { chrome.runtime.sendMessage({ type: 'sectionDownloadError', message: 'No section exists with that ID. Please review the Homeroom ID.' }); }
 					} catch (err) { }
 
 					// get number of students
@@ -148,6 +147,7 @@ function scanTable(sectionName) {
 					student['id'] = studentId;
 					student['name'] = CryptoJS.AES.encrypt(studentName, cryptoPass);
 					student['sectionStage'] = sectionStage;
+					student['dataDownloaded'] = false;
 
 					// add student to the students obj
 					students['ST' + studentId] = student;
@@ -163,11 +163,11 @@ function scanTable(sectionName) {
 			}
 		})
 
-		// set the array to access it on the popup
-		storage.set({ 'students': students, 'sectionName': sectionName });
-
-		// start to get truancy
-		chrome.runtime.sendMessage({ type: 'getTruancyDetails', studentId: 'all' });
+		// Keep the roster hand-off explicit. The background worker reuses one hidden tab
+		// for all student records and owns progress, retries, and cleanup.
+		storage.set({ 'students': students, 'sectionName': sectionName }, () => {
+			chrome.runtime.sendMessage({ type: 'rosterScrapeComplete' });
+		});
 	});
 }
 

@@ -4,6 +4,13 @@ let bgConsole = {
     }
 }
 
+function materializeLedgerAliases(ledger) {
+    if (!ledger || !ledger.ohbca?.copyFrom) return ledger;
+    const source = ledger[ledger.ohbca.copyFrom];
+    const { copyFrom, ...overrides } = ledger.ohbca;
+    return source ? { ...ledger, ohbca: { ...JSON.parse(JSON.stringify(source)), ...overrides, name: 'ohbca' } } : ledger;
+}
+
 loadPopup();
 
 function loadPopup(){
@@ -20,7 +27,7 @@ function loadPopup(){
         console.log(result);
         window.chatData.students = result.students;
         window.chatData.userSettings = result.userSettings;
-        window.chatData.chatLedger = result.chatLedger;
+        window.chatData.chatLedger = materializeLedgerAliases(result.chatLedger);
         console.log('loading popup.js');
         loadSchoolLogo();
         loadCurrentApproval();
@@ -34,7 +41,8 @@ function loadPopup(){
 
 function loadSchoolLogo(school){
     bgConsole.log(school);
-    document.querySelector('#schoolLogo').src = `images/${school || chatData.userSettings.school}logo.png`;
+    const schoolLogo = (school || chatData.userSettings.school) === 'ohbca' ? 'grca' : (school || chatData.userSettings.school);
+    document.querySelector('#schoolLogo').src = `images/${schoolLogo}logo.png`;
 }
 
 function selectSchool(btnId){

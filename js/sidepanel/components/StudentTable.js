@@ -85,11 +85,11 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove, sectionNa
   });
 
   return (
-    <Card elevation={1} sx={{ borderRadius: 1, overflow: 'hidden' }}>
+    <Card elevation={1} sx={{ borderRadius: 1, overflow: 'hidden', backgroundColor: 'rgba(255, 255, 255, .86)' }}>
       <Box sx={{ 
         py: 0.5, 
         px: 1,
-        backgroundColor: '#722361', 
+        background: 'linear-gradient(100deg, #3d1235, #722362 58%, #521948)',
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -101,7 +101,7 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove, sectionNa
         </Typography>
       </Box>
       
-      <TableContainer sx={{ maxHeight: 'calc(100vh - 120px)' }}>
+      <TableContainer sx={{ maxHeight: 'calc(100vh - 174px)' }}>
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
@@ -110,10 +110,10 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove, sectionNa
                   key={field.field}
                   sx={{ 
                     fontWeight: 600,
-                    backgroundColor: '#722361',
+                    backgroundColor: 'rgba(114, 35, 98, .93)',
                     color: 'white',
                     borderBottom: 2,
-                    borderColor: '#722361',
+                    borderColor: '#722362',
                     py: 0.25,
                     px: 1,
                     fontSize: '0.7rem',
@@ -127,7 +127,7 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove, sectionNa
               ))}
             </TableRow>
           </TableHead>
-          <TableBody>
+          <TableBody sx={{ '& .MuiTableCell-root': { backgroundColor: 'rgba(255, 255, 255, .72)', color: '#2b1726' } }}>
             {studentIds.map((studentId, index) => (
               <StudentRow
                 key={studentId}

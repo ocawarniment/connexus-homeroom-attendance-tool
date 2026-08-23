@@ -6,9 +6,9 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  background: #f8f9fa;
-  color: #212529;
+  font-family: "Avenir Next", Avenir, "Century Gothic", ui-sans-serif, system-ui, sans-serif;
+  background: #102522;
+  color: #eaf1eb;
   line-height: 1.5;
 }
 
@@ -16,6 +16,67 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+.chalk-tray {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 16px;
+  z-index: 3;
+  border-radius: 0;
+  background: linear-gradient(180deg, #987458 0 22%, #4a3427 27%, #2d2018 100%);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .22);
+}
+
+.chalk-tray::before,
+.chalk-tray::after {
+  position: absolute;
+  bottom: 5px;
+  width: 19px;
+  height: 5px;
+  content: '';
+  border-radius: 2px;
+  background: #f3ead5;
+  box-shadow: 30px 1px 0 #c9dfe0, 60px 0 0 #ddc5d8;
+}
+
+.chalk-tray::before { left: 18px; }
+.chalk-tray::after { right: 28px; bottom: 3px; width: 46px; height: 10px; border-radius: 2px; background: linear-gradient(180deg, #e0c186 0 34%, #3f3025 38%); box-shadow: 0 1px 2px rgba(0,0,0,.45); }
+
+.light-mode .chalk-tray {
+  background: linear-gradient(180deg, #d4d8d4 0 30%, #aab1ad 34%, #8a918e 100%);
+  box-shadow: 0 2px 4px rgba(43, 62, 56, .28), inset 0 1px rgba(255, 255, 255, .75);
+}
+
+.light-mode .chalk-tray::before {
+  width: 42px;
+  height: 6px;
+  border-radius: 4px;
+  background: #315f91;
+  box-shadow: 48px 0 0 #7d2b4c, 96px 0 0 #216b55;
+}
+
+.light-mode .chalk-tray::after {
+  width: 33px;
+  height: 9px;
+  background: linear-gradient(180deg, #f5f6f3 0 70%, #46504e 73%);
+}
+
+.board-fade {
+  position: absolute;
+  right: 0;
+  bottom: 16px;
+  left: 0;
+  height: 42px;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(16, 37, 34, 0), #102522 88%);
+}
+
+.light-mode .board-fade {
+  background: linear-gradient(to bottom, rgba(240, 242, 239, 0), #e7eae6 88%);
 }
 
 /* Header Styles */
