@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Reference manual for the CHAT — Connexus Homeroom Attendance Tool Chrome extension.">
+  <title>CHAT Reference Manual</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Connexus Homeroom Attendance Tool</p>
+      <h1>CHAT Reference Manual</h1>
+      <p class="lede">Installation, attendance workflows, features, and troubleshooting for CHAT.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="https://github.com/ocawarniment/connexus-homeroom-attendance-tool/archive/refs/heads/master.zip">Download CHAT</a>
+        <a class="button subtle" href="#install">Installation guide</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="Documentation navigation">
+      <a href="#download">Download</a>
+      <a href="#install">Install or update</a>
+      <a href="#approvals">Approve attendance</a>
+      <a href="#features">Features</a>
+      <a href="#settings">Settings</a>
+      <a href="#faq">Frequently asked questions</a>
+      <a href="#ledger">CHAT Ledger</a>
+    </aside>
+
+    <main id="content">
+      <section id="download">
+        <p class="section-label">Get started</p>
+        <h2>Download CHAT</h2>
+        <p>Download the current release from the public GitHub repository. The same link always provides the latest version.</p>
+        <a class="text-link" href="https://github.com/ocawarniment/connexus-homeroom-attendance-tool/archive/refs/heads/master.zip">Download the current ZIP file</a>
+      </section>
+
+      <section id="install">
+        <p class="section-label">Installation</p>
+        <h2>Install or update the extension</h2>
+        <div class="callout"><strong>Before you begin:</strong> Keep the unzipped CHAT folder in a safe, permanent location. Chrome or Edge loads the extension directly from that folder.</div>
+        <div class="grid two">
+          <article class="card">
+            <h3>New installation</h3>
+            <ol>
+              <li>Download the CHAT ZIP file and unzip it.</li>
+              <li>Move the resulting <code>connexus-homeroom-attendance-tool</code> folder to a safe location.</li>
+              <li>Open <code>chrome://extensions</code> or <code>edge://extensions</code>.</li>
+              <li>Turn on <strong>Developer mode</strong>.</li>
+              <li>Select <strong>Load unpacked</strong>, then choose the unzipped CHAT folder.</li>
+              <li>Optionally pin CHAT from the browser’s extensions menu for quick access.</li>
+            </ol>
+            <a class="text-link" href="https://drive.google.com/file/d/1alEPqwkLiXZuFpfWKWyW5IcNkzey20C3/view">Watch the installation walkthrough</a>
+          </article>
+          <article class="card">
+            <h3>Updating CHAT</h3>
+            <ol>
+              <li>Download and unzip the latest CHAT ZIP file.</li>
+              <li>Open the browser extensions page and remove the old CHAT installation.</li>
+              <li>Use <strong>Load unpacked</strong> to select the new unzipped folder.</li>
+              <li>Review Settings after reinstalling; extension settings may need to be reselected.</li>
+            </ol>
+            <a class="text-link" href="https://drive.google.com/file/d/1lkZt2Olkk2NkBK08k2X_PNNnHYnk8fgJ/view">Watch the update walkthrough</a>
+          </article>
+        </div>
+      </section>
+
+      <section id="approvals">
+        <p class="section-label">Core workflow</p>
+        <h2>Approve attendance</h2>
+        <p>CHAT collects the selected section’s student measures and applies each school’s guidance algorithm. The side panel summarizes students and offers an approval action for each student.</p>
+        <div class="callout"><strong>What the guidance means:</strong> Each student’s action includes a tooltip that explains the calculation and the reason for the suggested approval, review, or adjustment.</div>
+        <a class="text-link" href="https://drive.google.com/file/d/1U0Itex4a8u1ZwzQrjM7Y1ATxwwCkZ8GJ/view">Watch sample student approvals</a>
+      </section>
+
+      <section id="features">
+        <p class="section-label">Features</p>
+        <h2>What CHAT can do</h2>
+        <a class="text-link" href="https://drive.google.com/file/d/16reM6aLzIiR9WdzacEl9twrvVn_TP5zt/view">Watch the features overview</a>
+        <div class="grid three feature-grid">
+          <article class="card"><h3>Attendance guidance</h3><p>School-specific measures and algorithms provide practical approval, review, or adjustment guidance.</p></article>
+          <article class="card"><h3>Student monitoring</h3><p>Surface engagement, attendance, work completion, and other configured student data in one place.</p></article>
+          <article class="card"><h3>Quick links</h3><p>Open commonly used Connexus pages for a particular student directly from the student menu.</p></article>
+          <article class="card"><h3>CAT enhancements</h3><p>Bring course activity, work completion, displayed-hour totals, and adjustment history into the attendance workflow.</p></article>
+          <article class="card"><h3>Log and WebMail support</h3><p>Store time adjustments for documentation and family communication workflows.</p></article>
+          <article class="card"><h3>LiveLesson logger</h3><p>Legacy Zoom participant-report support remains available for schools that use the workflow.</p></article>
+        </div>
+      </section>
+
+      <section id="settings">
+        <p class="section-label">Customize CHAT</p>
+        <h2>Settings</h2>
+        <dl class="settings-list">
+          <div><dt>School</dt><dd>Select OCA, GRCA, or OHBCA. The selected school controls the configured data view, attendance guidance, and calendar.</dd></div>
+          <div><dt>Appearance</dt><dd>Choose the Whiteboard or Chalkboard side-panel appearance.</dd></div>
+          <div><dt>Approval window</dt><dd>Set a one-, two-, three-, or four-week review window.</dd></div>
+          <div><dt>Table fields</dt><dd>Add or remove student columns based on the information you need to see.</dd></div>
+          <div><dt>OCA overdue lessons</dt><dd>OCA users can choose overdue lessons as the primary work-completion measure. Redownload the section after changing this setting.</dd></div>
+        </dl>
+      </section>
+
+      <section id="ledger">
+        <p class="section-label">Updates without reinstalling</p>
+        <h2>CHAT Ledger</h2>
+        <p>The CHAT Ledger is the extension’s source of school-specific configuration: data-view locations, attendance guidance, calendars, and quick links. Use <strong>Update</strong> in Settings to retrieve Ledger updates without reinstalling the extension.</p>
+        <a class="text-link" href="https://github.com/ocawarniment/ocawarniment.github.io/blob/master/chatLedger.json">View the CHAT Ledger</a>
+      </section>
+
+      <section id="faq">
+        <p class="section-label">Troubleshooting</p>
+        <h2>Frequently asked questions</h2>
+        <div class="faq-list">
+          <details><summary>Overdue Lessons reads <em>N/A</em> for every student.</summary><p>Choose Overdue Lessons as the completion measure in Settings, then redownload the section. This value is available only to homeroom teachers.</p></details>
+          <details><summary>Attendance hours do not match Connexus.</summary><p>CHAT reads the current-year Truancy Tracking data view. Pearson refreshes that data view daily, so recent adjustments may not appear immediately.</p></details>
+          <details><summary>Several tabs open or actions appear to run twice.</summary><p>Remove or disable the Connexus Attendance Assistant and ensure only one attendance automation extension is active.</p></details>
+          <details><summary>I cannot find the CHAT extension icon.</summary><p>Open the browser’s extensions menu (the puzzle-piece icon), then pin CHAT so it stays visible.</p></details>
+          <details><summary>A section download opens an Access Denied page.</summary><p>Verify the section ID and confirm the correct school is selected in Settings.</p></details>
+          <details><summary>I see errors for CHAT on the Chrome extensions page.</summary><p>Some legacy CAT integrations can create known extension-page errors while still supporting the attendance workflow. Record the error details before requesting support.</p></details>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer>CHAT — Connexus Homeroom Attendance Tool · Documentation for version 4.0.0</footer>
+</body>
+</html>
