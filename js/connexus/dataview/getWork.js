@@ -46,38 +46,10 @@ function setDates() {
 		document.getElementById("CourseID_AssessmentsCompleted").value = "";
 		document.getElementById("CourseID_LessonsCompleted").value = "";
 			
-		//Uncheck all assessments types
-		var surveyCheck = document.getElementById("Gradebook_AssessmentsCompleted[0]");
-		var discussionCheck = document.getElementById("Gradebook_AssessmentsCompleted[1]");
-		var draftCheck = document.getElementById("Gradebook_AssessmentsCompleted[2]");
-		var examCheck = document.getElementById("Gradebook_AssessmentsCompleted[3]");
-		var finalCheck = document.getElementById("Gradebook_AssessmentsCompleted[4]");
-		var partCheck = document.getElementById("Gradebook_AssessmentsCompleted[5]");
-		var portCheck = document.getElementById("Gradebook_AssessmentsCompleted[6]");
-		var pracCheck = document.getElementById("Gradebook_AssessmentsCompleted[7]");
-		var preCheck = document.getElementById("Gradebook_AssessmentsCompleted[8]");
-		var quickCheck = document.getElementById("Gradebook_AssessmentsCompleted[9]");
-		var quizCheck = document.getElementById("Gradebook_AssessmentsCompleted[10]");
-		var reflCheck = document.getElementById("Gradebook_AssessmentsCompleted[11]");
-		var samplCheck = document.getElementById("Gradebook_AssessmentsCompleted[12]");
-		var skilCheck = document.getElementById("Gradebook_AssessmentsCompleted[13]");
-		var testCheck = document.getElementById("Gradebook_AssessmentsCompleted[14]");
-
-		if (surveyCheck.getAttribute("checked") == "checked") { surveyCheck.click(); }
-		if (discussionCheck.getAttribute("checked") == "checked") { discussionCheck.click(); }
-		if (draftCheck.getAttribute("checked") == "checked") { draftCheck.click(); }
-		if (examCheck.getAttribute("checked") == "checked") { examCheck.click(); }
-		if (finalCheck.getAttribute("checked") == "checked") { finalCheck.click(); }
-		if (partCheck.getAttribute("checked") == "checked") { partCheck.click(); }
-		if (portCheck.getAttribute("checked") == "checked") { portCheck.click(); }
-		if (pracCheck.getAttribute("checked") == "checked") { pracCheck.click(); }
-		if (preCheck.getAttribute("checked") == "checked") { preCheck.click(); }
-		if (quickCheck.getAttribute("checked") == "checked") { quickCheck.click(); }
-		if (quizCheck.getAttribute("checked") == "checked") { quizCheck.click(); }
-		if (reflCheck.getAttribute("checked") == "checked") { reflCheck.click(); }
-		if (samplCheck.getAttribute("checked") == "checked") { samplCheck.click(); }
-		if (skilCheck.getAttribute("checked") == "checked") { skilCheck.click(); }
-		if (testCheck.getAttribute("checked") == "checked") { testCheck.click(); }
+		// Reset every assessment type. Connexus can add options, so do not depend on fixed indexes.
+		document.querySelectorAll('input[id^="Gradebook_AssessmentsCompleted["]').forEach(function(assessmentCheck) {
+			if (assessmentCheck.checked) assessmentCheck.click();
+		});
 		
 		// click the save button to reload
 		document.getElementById("save").click();
@@ -86,4 +58,3 @@ function setDates() {
 
 	});
 }
-
