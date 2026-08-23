@@ -5,6 +5,7 @@ const activityDataWorkers = new Map();
 const activityWorkerGroups = new Map();
 const activityWorkerGroupLocks = new Map();
 const activityWorkerStartLocks = new Map();
+const chatGroupAnimations = new Map();
 const ACTIVITY_DATA_STEP_TIMEOUT_MS = 20000;
 const activityWorkerStorage = chrome.storage.session || chrome.storage.local;
 let activityWorkerPersistence = Promise.resolve();
@@ -16,6 +17,30 @@ function activityDataFailureMessage(step) {
     return step === 'work'
         ? 'Unable to display lesson and assessment counts.'
         : 'Unable to overwrite Course Activity with specific course name.';
+}
+
+function stopChatGroupAnimation(groupId) {
+    const animation = chatGroupAnimations.get(groupId);
+    if (!animation) return;
+    clearInterval(animation.intervalId);
+    chatGroupAnimations.delete(groupId);
+}
+
+function startChatGroupAnimation(groupId) {
+    if (chatGroupAnimations.has(groupId)) return;
+    let dotCount = 0;
+    const updateTitle = async () => {
+        dotCount = (dotCount % 3) + 1;
+        try {
+            await chrome.tabGroups.update(groupId, { title: `CHAT — Downloading${'.'.repeat(dotCount)}`, collapsed: true });
+        } catch (error) {
+            // The group disappears automatically once its final worker tab closes.
+            stopChatGroupAnimation(groupId);
+        }
+    };
+    const intervalId = setInterval(updateTitle, 700);
+    chatGroupAnimations.set(groupId, { intervalId });
+    updateTitle();
 }
 chrome.storage.local.get(null, result => {
     chatLedger = materializeLedgerAliases(result.chatLedger);
@@ -98,6 +123,7 @@ async function addActivityWorkerToChatGroup(sourceTabId, workerTabId, windowId) 
             : await chrome.tabs.group({ tabIds: workerTabId, createProperties: { windowId } });
         await chrome.tabGroups.update(groupId, { title: 'CHAT', color: 'purple', collapsed: true });
         activityWorkerGroups.set(sourceTabId, { groupId, windowId });
+        startChatGroupAnimation(groupId);
         return groupId;
     });
     activityWorkerGroupLocks.set(sourceTabId, task);
@@ -228,6 +254,7 @@ async function closeActivityDataWorker(sourceTabId, step, { status, message, not
     if (Object.keys(remaining).length) activityDataWorkers.set(sourceTabId, remaining);
     else {
         activityDataWorkers.delete(sourceTabId);
+        stopChatGroupAnimation(details.groupId);
         activityWorkerGroups.delete(sourceTabId);
     }
     await persistActivityDataWorkers();
@@ -263,6 +290,8 @@ chrome.windows.onRemoved.addListener(windowId => {
     if (worker) finishActivityDataWorker(worker.sourceTabId, worker.step, 'error', activityDataFailureMessage(worker.step)).catch(error => console.error('[CHAT activity data] Worker-window cleanup failed.', error));
     if (activeSectionDownload?.windowId === windowId) finishSectionDownload('error', 'The CHAT download group was closed before the download finished.').catch(error => console.error('Section-download window cleanup failed.', error));
 });
+
+chrome.tabGroups.onRemoved.addListener(group => stopChatGroupAnimation(group.id));
 
 chrome.runtime.onInstalled.addListener(function(details){
     if(details.reason == "install"){
@@ -876,6 +905,7 @@ async function startSectionDownload(sectionId, preferredWindowId) {
     try {
         groupId = await chrome.tabs.group({ tabIds: workerTab.id, createProperties: { windowId } });
         await chrome.tabGroups.update(groupId, { title: 'CHAT', color: 'purple', collapsed: true });
+        startChatGroupAnimation(groupId);
     } catch (error) {
         try { await chrome.tabs.remove(workerTab.id); } catch (removeError) {}
         throw new Error(`Unable to place the section download workspace in the CHAT tab group: ${error.message}`);
@@ -1023,6 +1053,7 @@ async function finishSectionDownload(status, message) {
             console.info('CHAT section-download group worker closed.', { groupId: download.groupId, tabId: download.tabId });
         } catch (error) { console.warn('Download workspace was already closed.', error); }
     }
+    stopChatGroupAnimation(download?.groupId);
     const { downloadProgress = {} } = await chrome.storage.local.get('downloadProgress');
     await updateDownloadProgress({ ...downloadProgress, status, message });
     if (status === 'complete') {
