@@ -2,6 +2,9 @@
 let chatLedger = null;
 let activeSectionDownload = null;
 const activityDataWorkers = new Map();
+const activityWorkerGroups = new Map();
+const activityWorkerGroupLocks = new Map();
+const activityWorkerStartLocks = new Map();
 const ACTIVITY_DATA_STEP_TIMEOUT_MS = 20000;
 const activityWorkerStorage = chrome.storage.session || chrome.storage.local;
 let activityWorkerPersistence = Promise.resolve();
@@ -50,7 +53,7 @@ function serializeActivityDataWorkers() {
     for (const [sourceTabId, steps] of activityDataWorkers.entries()) {
         workers[sourceTabId] = {};
         for (const [step, details] of Object.entries(steps)) {
-            workers[sourceTabId][step] = { windowId: details.windowId, tabId: details.tabId };
+            workers[sourceTabId][step] = { windowId: details.windowId, tabId: details.tabId, groupId: details.groupId };
         }
     }
     return workers;
@@ -71,13 +74,37 @@ async function recoverActivityDataWorkers() {
         await activityWorkerStorage.remove('activityDataWorkers');
         for (const [sourceTabId, steps] of Object.entries(savedWorkers)) {
             for (const [step, details] of Object.entries(steps)) {
-                try { await chrome.windows.remove(details.windowId); } catch (error) {}
+                if (details.tabId) {
+                    try { await chrome.tabs.remove(details.tabId); } catch (error) {}
+                } else if (details.windowId) {
+                    // Compatibility cleanup for worker windows created before tab groups were introduced.
+                    try { await chrome.windows.remove(details.windowId); } catch (error) {}
+                }
                 sendActivityProgress(Number(sourceTabId), step, 'error', activityDataFailureMessage(step));
                 console.warn('[CHAT activity data] Closed worker left by a previous service-worker session.', { sourceTabId, step, windowId: details.windowId });
             }
         }
     } catch (error) {
         console.error('[CHAT activity data] Could not recover prior worker windows.', error);
+    }
+}
+
+async function addActivityWorkerToChatGroup(sourceTabId, workerTabId, windowId) {
+    const priorTask = activityWorkerGroupLocks.get(sourceTabId) || Promise.resolve();
+    const task = priorTask.catch(() => {}).then(async () => {
+        const existingGroup = activityWorkerGroups.get(sourceTabId);
+        const groupId = existingGroup
+            ? await chrome.tabs.group({ tabIds: workerTabId, groupId: existingGroup.groupId })
+            : await chrome.tabs.group({ tabIds: workerTabId, createProperties: { windowId } });
+        await chrome.tabGroups.update(groupId, { title: 'CHAT', color: 'purple', collapsed: true });
+        activityWorkerGroups.set(sourceTabId, { groupId, windowId });
+        return groupId;
+    });
+    activityWorkerGroupLocks.set(sourceTabId, task);
+    try {
+        return await task;
+    } finally {
+        if (activityWorkerGroupLocks.get(sourceTabId) === task) activityWorkerGroupLocks.delete(sourceTabId);
     }
 }
 
@@ -114,7 +141,7 @@ async function waitForTabLoad(tabId, timeoutMs = 30000, signal) {
     });
 }
 
-async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
+async function createActivityDataWorker(sourceTabId, step, url, scriptFile) {
     await activityWorkerRecovery;
     if (!sourceTabId) throw new Error('The source activity page is unavailable.');
     const existingWorker = activityDataWorkers.get(sourceTabId)?.[step];
@@ -123,19 +150,27 @@ async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
         await closeActivityDataWorker(sourceTabId, step, { notify: false });
     }
     sendActivityProgress(sourceTabId, step, 'loading');
-    console.info('[CHAT activity data] Opening hidden worker.', { sourceTabId, step, url, scriptFile });
-    let workerWindow;
+    console.info('[CHAT activity data] Opening collapsed CHAT-group worker.', { sourceTabId, step, url, scriptFile });
+    let workerTab;
+    let sourceWindowId;
     try {
-        workerWindow = await chrome.windows.create({ url, type: 'popup', state: 'minimized', focused: false });
+        const sourceTab = await chrome.tabs.get(sourceTabId);
+        sourceWindowId = sourceTab.windowId;
+        workerTab = await chrome.tabs.create({ windowId: sourceWindowId, url, active: false });
     } catch (error) {
         throw new Error(`Unable to create the background data workspace: ${error.message}`);
     }
-    const workerTab = workerWindow.tabs?.[0];
     if (!workerTab?.id) {
-        try { await chrome.windows.remove(workerWindow.id); } catch (error) {}
         throw new Error('Unable to create the background data workspace.');
     }
-    console.info('[CHAT activity data] Hidden worker created.', { sourceTabId, step, windowId: workerWindow.id, tabId: workerTab.id });
+    let groupId;
+    try {
+        groupId = await addActivityWorkerToChatGroup(sourceTabId, workerTab.id, sourceWindowId);
+    } catch (error) {
+        try { await chrome.tabs.remove(workerTab.id); } catch (removeError) {}
+        throw new Error(`Unable to place the background data workspace in the CHAT tab group: ${error.message}`);
+    }
+    console.info('[CHAT activity data] CHAT-group worker created.', { sourceTabId, step, windowId: sourceWindowId, groupId, tabId: workerTab.id });
 
     const existing = activityDataWorkers.get(sourceTabId) || {};
     const abortController = new AbortController();
@@ -143,7 +178,7 @@ async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
         console.error('[CHAT activity data] Worker exceeded its step deadline.', { sourceTabId, step, timeoutMs: ACTIVITY_DATA_STEP_TIMEOUT_MS });
         finishActivityDataWorker(sourceTabId, step, 'error', activityDataFailureMessage(step)).catch(error => console.error('[CHAT activity data] Timed-out worker cleanup failed.', error));
     }, ACTIVITY_DATA_STEP_TIMEOUT_MS);
-    activityDataWorkers.set(sourceTabId, { ...existing, [step]: { windowId: workerWindow.id, tabId: workerTab.id, timeoutId, abortController } });
+    activityDataWorkers.set(sourceTabId, { ...existing, [step]: { windowId: sourceWindowId, tabId: workerTab.id, groupId, timeoutId, abortController } });
     await persistActivityDataWorkers();
     await waitForTabLoad(workerTab.id, 30000, abortController.signal);
     if (scriptFile) {
@@ -151,6 +186,16 @@ async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
         await chrome.scripting.executeScript({ target: { tabId: workerTab.id }, files: [scriptFile] });
     }
     return workerTab;
+}
+
+function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
+    const key = `${sourceTabId}:${step}`;
+    const priorTask = activityWorkerStartLocks.get(key) || Promise.resolve();
+    const task = priorTask.catch(() => {}).then(() => createActivityDataWorker(sourceTabId, step, url, scriptFile));
+    activityWorkerStartLocks.set(key, task);
+    return task.finally(() => {
+        if (activityWorkerStartLocks.get(key) === task) activityWorkerStartLocks.delete(key);
+    });
 }
 
 function findActivityWorkerByTab(tabId) {
@@ -181,11 +226,14 @@ async function closeActivityDataWorker(sourceTabId, step, { status, message, not
     const remaining = { ...worker };
     delete remaining[step];
     if (Object.keys(remaining).length) activityDataWorkers.set(sourceTabId, remaining);
-    else activityDataWorkers.delete(sourceTabId);
+    else {
+        activityDataWorkers.delete(sourceTabId);
+        activityWorkerGroups.delete(sourceTabId);
+    }
     await persistActivityDataWorkers();
     try {
-        await chrome.windows.remove(details.windowId);
-        console.info('[CHAT activity data] Hidden worker closed.', { sourceTabId, step, windowId: details.windowId });
+        await chrome.tabs.remove(details.tabId);
+        console.info('[CHAT activity data] CHAT-group worker closed.', { sourceTabId, step, tabId: details.tabId, groupId: details.groupId });
     } catch (error) { console.warn('[CHAT activity data] Background data workspace was already closed.', { sourceTabId, step, error: error.message }); }
 }
 
@@ -213,7 +261,7 @@ chrome.tabs.onRemoved.addListener(tabId => {
 chrome.windows.onRemoved.addListener(windowId => {
     const worker = findActivityWorkerByWindow(windowId);
     if (worker) finishActivityDataWorker(worker.sourceTabId, worker.step, 'error', activityDataFailureMessage(worker.step)).catch(error => console.error('[CHAT activity data] Worker-window cleanup failed.', error));
-    if (activeSectionDownload?.windowId === windowId) finishSectionDownload('error', 'The hidden section download workspace was closed before the download finished.').catch(error => console.error('Section-download window cleanup failed.', error));
+    if (activeSectionDownload?.windowId === windowId) finishSectionDownload('error', 'The CHAT download group was closed before the download finished.').catch(error => console.error('Section-download window cleanup failed.', error));
 });
 
 chrome.runtime.onInstalled.addListener(function(details){
@@ -251,11 +299,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // sections w/o overdue lessons for non hr teachers
     if (request.type == "getRoster") {
-        startSectionDownload(request.sectionId)
+        startSectionDownload(request.sectionId, sender.tab?.windowId)
             .then(() => sendResponse({ started: true }))
-            .catch(error => {
+            .catch(async error => {
                 console.error('Unable to start section download:', error);
-                updateDownloadProgress({ status: 'error', message: 'Unable to start the section download.' });
+                if (activeSectionDownload) await finishSectionDownload('error', 'Unable to start the section download.');
+                else await updateDownloadProgress({ status: 'error', message: 'Unable to start the section download.' });
                 sendResponse({ started: false, error: error.message });
             });
         return true;
@@ -282,16 +331,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // CAT Cleanup Messages
     if (request.type == "scrapeValue") {
         (async () => {
-            let workerWindow;
+            const sourceTabId = sender.tab?.id;
+            const step = 'prerequisite';
             let tabId;
             try {
-                if (request.hidden) {
-                    workerWindow = await chrome.windows.create({ url: request.url, type: 'popup', state: 'minimized', focused: false });
-                    tabId = workerWindow.tabs?.[0]?.id;
-                } else {
-                    const tab = await chrome.tabs.create({ url: request.url, active: false });
-                    tabId = tab.id;
-                }
+                const workerTab = request.hidden
+                    ? await startActivityDataWorker(sourceTabId, step, request.url)
+                    : await chrome.tabs.create({ url: request.url, active: false });
+                tabId = workerTab?.id;
                 if (!tabId) throw new Error('Unable to create the data scrape workspace.');
                 await waitForTabLoad(tabId);
                 await chrome.scripting.executeScript({
@@ -305,8 +352,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.error('[CHAT activity data] Prerequisite value scrape failed.', { url: request.url, tabId, error: error.message, stack: error.stack });
                 sendResponse(null);
             } finally {
-                if (workerWindow?.id) {
-                    try { await chrome.windows.remove(workerWindow.id); } catch (error) {}
+                if (request.hidden && sourceTabId) {
+                    await closeActivityDataWorker(sourceTabId, step, { notify: false });
                 } else if (tabId) {
                     try { await chrome.tabs.remove(tabId); } catch (error) {}
                 }
@@ -771,7 +818,7 @@ function updateDownloadProgress(progress) {
 
 function persistSectionDownloadWorker() {
     const worker = activeSectionDownload
-        ? { windowId: activeSectionDownload.windowId, tabId: activeSectionDownload.tabId }
+        ? { windowId: activeSectionDownload.windowId, tabId: activeSectionDownload.tabId, groupId: activeSectionDownload.groupId }
         : null;
     return activityWorkerStorage.set({ [SECTION_DOWNLOAD_WORKER_KEY]: worker });
 }
@@ -782,7 +829,12 @@ async function recoverSectionDownloadWorker() {
         const worker = saved[SECTION_DOWNLOAD_WORKER_KEY];
         await activityWorkerStorage.remove(SECTION_DOWNLOAD_WORKER_KEY);
         if (!worker?.windowId) return;
-        try { await chrome.windows.remove(worker.windowId); } catch (error) {}
+        if (worker.tabId) {
+            try { await chrome.tabs.remove(worker.tabId); } catch (error) {}
+        } else if (worker.windowId) {
+            // Compatibility cleanup for worker windows created before tab groups were introduced.
+            try { await chrome.windows.remove(worker.windowId); } catch (error) {}
+        }
         await updateDownloadProgress({ status: 'error', message: 'A previous hidden section download was stopped safely. Please restart the download.' });
         console.warn('Closed section-download worker left by a previous service-worker session.', worker);
     } catch (error) {
@@ -790,7 +842,7 @@ async function recoverSectionDownloadWorker() {
     }
 }
 
-async function startSectionDownload(sectionId) {
+async function startSectionDownload(sectionId, preferredWindowId) {
     await sectionDownloadRecovery;
     if (activeSectionDownload) {
         await finishSectionDownload('cancelled', 'A new section download was started.');
@@ -803,29 +855,40 @@ async function startSectionDownload(sectionId) {
         message: 'Opening the secure download workspace…'
     });
 
-    let workerWindow;
+    let workerTab;
+    let windowId = preferredWindowId;
     try {
-        workerWindow = await chrome.windows.create({
+        if (!windowId) windowId = (await chrome.windows.getLastFocused()).id;
+        const hostWindow = await chrome.windows.get(windowId);
+        if (hostWindow.type !== 'normal') windowId = (await chrome.windows.getLastFocused()).id;
+        workerTab = await chrome.tabs.create({
+            windowId,
             url: `https://www.connexus.com/lmu/sections/webusers.aspx?idSection=${encodeURIComponent(sectionId)}`,
-            type: 'popup',
-            state: 'minimized',
-            focused: false
+            active: false
         });
     } catch (error) {
         throw new Error(`Unable to create the section download workspace: ${error.message}`);
     }
-    const workerTab = workerWindow.tabs?.[0];
     if (!workerTab?.id) {
-        try { await chrome.windows.remove(workerWindow.id); } catch (error) {}
         throw new Error('Unable to create the section download workspace.');
     }
+    let groupId;
+    try {
+        groupId = await chrome.tabs.group({ tabIds: workerTab.id, createProperties: { windowId } });
+        await chrome.tabGroups.update(groupId, { title: 'CHAT', color: 'purple', collapsed: true });
+    } catch (error) {
+        try { await chrome.tabs.remove(workerTab.id); } catch (removeError) {}
+        throw new Error(`Unable to place the section download workspace in the CHAT tab group: ${error.message}`);
+    }
     activeSectionDownload = {
-        windowId: workerWindow.id,
+        windowId,
         tabId: workerTab.id,
+        groupId,
         studentIds: [],
         currentIndex: 0
     };
     await persistSectionDownloadWorker();
+    console.info('CHAT section-download group created.', { windowId, groupId, tabId: workerTab.id });
 
     await updateDownloadProgress({
         status: 'roster',
@@ -954,8 +1017,11 @@ async function finishSectionDownload(status, message) {
     clearTimeout(download?.studentTimeout);
     download?.loadAbortController?.abort();
     await persistSectionDownloadWorker();
-    if (download?.windowId) {
-        try { await chrome.windows.remove(download.windowId); } catch (error) { console.warn('Download workspace was already closed.', error); }
+    if (download?.tabId) {
+        try {
+            await chrome.tabs.remove(download.tabId);
+            console.info('CHAT section-download group worker closed.', { groupId: download.groupId, tabId: download.tabId });
+        } catch (error) { console.warn('Download workspace was already closed.', error); }
     }
     const { downloadProgress = {} } = await chrome.storage.local.get('downloadProgress');
     await updateDownloadProgress({ ...downloadProgress, status, message });

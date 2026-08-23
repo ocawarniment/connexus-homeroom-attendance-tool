@@ -57,6 +57,7 @@
     "downloads",
     "storage",
     "tabs",
+    "tabGroups",
     "windows",
     "scripting",
     "activeTab",
