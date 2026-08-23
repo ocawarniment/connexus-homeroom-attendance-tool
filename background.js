@@ -3,6 +3,11 @@ let chatLedger = null;
 let activeSectionDownload = null;
 const activityDataWorkers = new Map();
 const ACTIVITY_DATA_STEP_TIMEOUT_MS = 20000;
+const activityWorkerStorage = chrome.storage.session || chrome.storage.local;
+let activityWorkerPersistence = Promise.resolve();
+let activityWorkerRecovery = Promise.resolve();
+const SECTION_DOWNLOAD_WORKER_KEY = 'activeSectionDownloadWorker';
+let sectionDownloadRecovery = Promise.resolve();
 
 function activityDataFailureMessage(step) {
     return step === 'work'
@@ -40,7 +45,43 @@ function sendActivityProgress(tabId, step, status, message) {
     chrome.tabs.sendMessage(tabId, { type: 'activityDataProgress', step, status, message }).catch(() => {});
 }
 
-async function waitForTabLoad(tabId, timeoutMs = 30000) {
+function serializeActivityDataWorkers() {
+    const workers = {};
+    for (const [sourceTabId, steps] of activityDataWorkers.entries()) {
+        workers[sourceTabId] = {};
+        for (const [step, details] of Object.entries(steps)) {
+            workers[sourceTabId][step] = { windowId: details.windowId, tabId: details.tabId };
+        }
+    }
+    return workers;
+}
+
+function persistActivityDataWorkers() {
+    const snapshot = serializeActivityDataWorkers();
+    activityWorkerPersistence = activityWorkerPersistence
+        .catch(() => {})
+        .then(() => activityWorkerStorage.set({ activityDataWorkers: snapshot }))
+        .catch(error => console.error('[CHAT activity data] Could not persist worker registry.', error));
+    return activityWorkerPersistence;
+}
+
+async function recoverActivityDataWorkers() {
+    try {
+        const { activityDataWorkers: savedWorkers = {} } = await activityWorkerStorage.get('activityDataWorkers');
+        await activityWorkerStorage.remove('activityDataWorkers');
+        for (const [sourceTabId, steps] of Object.entries(savedWorkers)) {
+            for (const [step, details] of Object.entries(steps)) {
+                try { await chrome.windows.remove(details.windowId); } catch (error) {}
+                sendActivityProgress(Number(sourceTabId), step, 'error', activityDataFailureMessage(step));
+                console.warn('[CHAT activity data] Closed worker left by a previous service-worker session.', { sourceTabId, step, windowId: details.windowId });
+            }
+        }
+    } catch (error) {
+        console.error('[CHAT activity data] Could not recover prior worker windows.', error);
+    }
+}
+
+async function waitForTabLoad(tabId, timeoutMs = 30000, signal) {
     console.info('[CHAT activity data] Waiting for worker tab to load.', { tabId, timeoutMs });
     const tab = await chrome.tabs.get(tabId);
     if (tab.status === 'complete') {
@@ -48,42 +89,63 @@ async function waitForTabLoad(tabId, timeoutMs = 30000) {
         return;
     }
     await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
+        let settled = false;
+        const finish = (callback, value) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
             chrome.tabs.onUpdated.removeListener(onUpdated);
+            signal?.removeEventListener('abort', onAbort);
+            callback(value);
+        };
+        const timeout = setTimeout(() => {
             console.error('[CHAT activity data] Worker tab timed out while loading.', { tabId, timeoutMs });
-            reject(new Error('Background data workspace did not finish loading.'));
+            finish(reject, new Error('Background data workspace did not finish loading.'));
         }, timeoutMs);
         const onUpdated = (updatedTabId, changeInfo) => {
             if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
-            clearTimeout(timeout);
-            chrome.tabs.onUpdated.removeListener(onUpdated);
             console.info('[CHAT activity data] Worker tab finished loading.', { tabId });
-            resolve();
+            finish(resolve);
         };
+        const onAbort = () => finish(reject, new Error('Background data workspace was closed.'));
         chrome.tabs.onUpdated.addListener(onUpdated);
+        if (signal?.aborted) onAbort();
+        else signal?.addEventListener('abort', onAbort, { once: true });
     });
 }
 
 async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
+    await activityWorkerRecovery;
+    if (!sourceTabId) throw new Error('The source activity page is unavailable.');
+    const existingWorker = activityDataWorkers.get(sourceTabId)?.[step];
+    if (existingWorker) {
+        console.warn('[CHAT activity data] Replacing duplicate worker request.', { sourceTabId, step, windowId: existingWorker.windowId });
+        await closeActivityDataWorker(sourceTabId, step, { notify: false });
+    }
     sendActivityProgress(sourceTabId, step, 'loading');
     console.info('[CHAT activity data] Opening hidden worker.', { sourceTabId, step, url, scriptFile });
-    const workerWindow = await chrome.windows.create({
-        url,
-        type: 'popup',
-        state: 'minimized',
-        focused: false
-    });
+    let workerWindow;
+    try {
+        workerWindow = await chrome.windows.create({ url, type: 'popup', state: 'minimized', focused: false });
+    } catch (error) {
+        throw new Error(`Unable to create the background data workspace: ${error.message}`);
+    }
     const workerTab = workerWindow.tabs?.[0];
-    if (!workerTab) throw new Error('Unable to create the background data workspace.');
+    if (!workerTab?.id) {
+        try { await chrome.windows.remove(workerWindow.id); } catch (error) {}
+        throw new Error('Unable to create the background data workspace.');
+    }
     console.info('[CHAT activity data] Hidden worker created.', { sourceTabId, step, windowId: workerWindow.id, tabId: workerTab.id });
 
     const existing = activityDataWorkers.get(sourceTabId) || {};
+    const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
         console.error('[CHAT activity data] Worker exceeded its step deadline.', { sourceTabId, step, timeoutMs: ACTIVITY_DATA_STEP_TIMEOUT_MS });
-        finishActivityDataWorker(sourceTabId, step, 'error', activityDataFailureMessage(step));
+        finishActivityDataWorker(sourceTabId, step, 'error', activityDataFailureMessage(step)).catch(error => console.error('[CHAT activity data] Timed-out worker cleanup failed.', error));
     }, ACTIVITY_DATA_STEP_TIMEOUT_MS);
-    activityDataWorkers.set(sourceTabId, { ...existing, [step]: { windowId: workerWindow.id, tabId: workerTab.id, timeoutId } });
-    await waitForTabLoad(workerTab.id);
+    activityDataWorkers.set(sourceTabId, { ...existing, [step]: { windowId: workerWindow.id, tabId: workerTab.id, timeoutId, abortController } });
+    await persistActivityDataWorkers();
+    await waitForTabLoad(workerTab.id, 30000, abortController.signal);
     if (scriptFile) {
         console.info('[CHAT activity data] Injecting worker script.', { sourceTabId, step, tabId: workerTab.id, scriptFile });
         await chrome.scripting.executeScript({ target: { tabId: workerTab.id }, files: [scriptFile] });
@@ -100,21 +162,59 @@ function findActivityWorkerByTab(tabId) {
     return null;
 }
 
-async function finishActivityDataWorker(sourceTabId, step, status = 'complete', message) {
+function findActivityWorkerByWindow(windowId) {
+    for (const [sourceTabId, worker] of activityDataWorkers.entries()) {
+        for (const [step, details] of Object.entries(worker)) {
+            if (details?.windowId === windowId) return { sourceTabId, step, details };
+        }
+    }
+    return null;
+}
+
+async function closeActivityDataWorker(sourceTabId, step, { status, message, notify = true } = {}) {
     const worker = activityDataWorkers.get(sourceTabId);
     const details = worker?.[step];
-    sendActivityProgress(sourceTabId, step, status, message);
+    if (notify && status) sendActivityProgress(sourceTabId, step, status, message);
     if (!details) return;
     clearTimeout(details.timeoutId);
+    details.abortController?.abort();
     const remaining = { ...worker };
     delete remaining[step];
     if (Object.keys(remaining).length) activityDataWorkers.set(sourceTabId, remaining);
     else activityDataWorkers.delete(sourceTabId);
+    await persistActivityDataWorkers();
     try {
         await chrome.windows.remove(details.windowId);
         console.info('[CHAT activity data] Hidden worker closed.', { sourceTabId, step, windowId: details.windowId });
     } catch (error) { console.warn('[CHAT activity data] Background data workspace was already closed.', { sourceTabId, step, error: error.message }); }
 }
+
+function finishActivityDataWorker(sourceTabId, step, status = 'complete', message) {
+    return closeActivityDataWorker(sourceTabId, step, { status, message });
+}
+
+async function closeAllActivityDataWorkers(sourceTabId, message) {
+    const worker = activityDataWorkers.get(sourceTabId);
+    if (!worker) return;
+    await Promise.all(Object.keys(worker).map(step => finishActivityDataWorker(sourceTabId, step, 'error', message || activityDataFailureMessage(step))));
+}
+
+activityWorkerRecovery = recoverActivityDataWorkers();
+
+chrome.tabs.onRemoved.addListener(tabId => {
+    if (activityDataWorkers.has(tabId)) {
+        closeAllActivityDataWorkers(tabId, 'The activity page was closed before the data download finished.').catch(error => console.error('[CHAT activity data] Source-tab cleanup failed.', error));
+        return;
+    }
+    const worker = findActivityWorkerByTab(tabId);
+    if (worker) finishActivityDataWorker(worker.sourceTabId, worker.step, 'error', activityDataFailureMessage(worker.step)).catch(error => console.error('[CHAT activity data] Worker-tab cleanup failed.', error));
+});
+
+chrome.windows.onRemoved.addListener(windowId => {
+    const worker = findActivityWorkerByWindow(windowId);
+    if (worker) finishActivityDataWorker(worker.sourceTabId, worker.step, 'error', activityDataFailureMessage(worker.step)).catch(error => console.error('[CHAT activity data] Worker-window cleanup failed.', error));
+    if (activeSectionDownload?.windowId === windowId) finishSectionDownload('error', 'The hidden section download workspace was closed before the download finished.').catch(error => console.error('Section-download window cleanup failed.', error));
+});
 
 chrome.runtime.onInstalled.addListener(function(details){
     if(details.reason == "install"){
@@ -669,7 +769,29 @@ function updateDownloadProgress(progress) {
     });
 }
 
+function persistSectionDownloadWorker() {
+    const worker = activeSectionDownload
+        ? { windowId: activeSectionDownload.windowId, tabId: activeSectionDownload.tabId }
+        : null;
+    return activityWorkerStorage.set({ [SECTION_DOWNLOAD_WORKER_KEY]: worker });
+}
+
+async function recoverSectionDownloadWorker() {
+    try {
+        const saved = await activityWorkerStorage.get(SECTION_DOWNLOAD_WORKER_KEY);
+        const worker = saved[SECTION_DOWNLOAD_WORKER_KEY];
+        await activityWorkerStorage.remove(SECTION_DOWNLOAD_WORKER_KEY);
+        if (!worker?.windowId) return;
+        try { await chrome.windows.remove(worker.windowId); } catch (error) {}
+        await updateDownloadProgress({ status: 'error', message: 'A previous hidden section download was stopped safely. Please restart the download.' });
+        console.warn('Closed section-download worker left by a previous service-worker session.', worker);
+    } catch (error) {
+        console.error('Could not recover a prior section-download worker.', error);
+    }
+}
+
 async function startSectionDownload(sectionId) {
+    await sectionDownloadRecovery;
     if (activeSectionDownload) {
         await finishSectionDownload('cancelled', 'A new section download was started.');
     }
@@ -681,19 +803,29 @@ async function startSectionDownload(sectionId) {
         message: 'Opening the secure download workspace…'
     });
 
-    const workerWindow = await chrome.windows.create({
-        url: `https://www.connexus.com/lmu/sections/webusers.aspx?idSection=${encodeURIComponent(sectionId)}`,
-        type: 'popup',
-        state: 'minimized',
-        focused: false
-    });
-    const workerTab = workerWindow.tabs[0];
+    let workerWindow;
+    try {
+        workerWindow = await chrome.windows.create({
+            url: `https://www.connexus.com/lmu/sections/webusers.aspx?idSection=${encodeURIComponent(sectionId)}`,
+            type: 'popup',
+            state: 'minimized',
+            focused: false
+        });
+    } catch (error) {
+        throw new Error(`Unable to create the section download workspace: ${error.message}`);
+    }
+    const workerTab = workerWindow.tabs?.[0];
+    if (!workerTab?.id) {
+        try { await chrome.windows.remove(workerWindow.id); } catch (error) {}
+        throw new Error('Unable to create the section download workspace.');
+    }
     activeSectionDownload = {
         windowId: workerWindow.id,
         tabId: workerTab.id,
         studentIds: [],
         currentIndex: 0
     };
+    await persistSectionDownloadWorker();
 
     await updateDownloadProgress({
         status: 'roster',
@@ -741,7 +873,10 @@ async function loadNextStudent() {
     const student = students[studentId];
     if (!student || !dataViewId) throw new Error('The student data-view configuration is unavailable.');
 
-    const pageLoaded = waitForTabComplete(tabId);
+    activeSectionDownload.loadAbortController?.abort();
+    const loadAbortController = new AbortController();
+    activeSectionDownload.loadAbortController = loadAbortController;
+    const pageLoaded = waitForTabComplete(tabId, 30000, loadAbortController.signal);
     await chrome.tabs.update(tabId, {
         url: `https://www.connexus.com/dataview/${dataViewId}?idWebuser=${encodeURIComponent(student.id)}`,
         active: false
@@ -764,20 +899,29 @@ function scheduleStudentTimeout(studentId) {
     }, 45000);
 }
 
-function waitForTabComplete(tabId, timeout = 30000) {
+function waitForTabComplete(tabId, timeout = 30000, signal) {
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
+        let settled = false;
+        const finish = (callback, value) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
             chrome.tabs.onUpdated.removeListener(listener);
-            reject(new Error('Timed out waiting for Connexus to load.'));
+            signal?.removeEventListener('abort', onAbort);
+            callback(value);
+        };
+        const timer = setTimeout(() => {
+            finish(reject, new Error('Timed out waiting for Connexus to load.'));
         }, timeout);
         const listener = (updatedTabId, changeInfo) => {
             if (updatedTabId === tabId && changeInfo.status === 'complete') {
-                clearTimeout(timer);
-                chrome.tabs.onUpdated.removeListener(listener);
-                resolve();
+                finish(resolve);
             }
         };
+        const onAbort = () => finish(reject, new Error('Section download workspace was closed.'));
         chrome.tabs.onUpdated.addListener(listener);
+        if (signal?.aborted) onAbort();
+        else signal?.addEventListener('abort', onAbort, { once: true });
     });
 }
 
@@ -808,6 +952,8 @@ async function finishSectionDownload(status, message) {
     const download = activeSectionDownload;
     activeSectionDownload = null;
     clearTimeout(download?.studentTimeout);
+    download?.loadAbortController?.abort();
+    await persistSectionDownloadWorker();
     if (download?.windowId) {
         try { await chrome.windows.remove(download.windowId); } catch (error) { console.warn('Download workspace was already closed.', error); }
     }
@@ -820,6 +966,7 @@ async function finishSectionDownload(status, message) {
     }
 }
 
+sectionDownloadRecovery = recoverSectionDownloadWorker();
 
 function initInstall() {
     try {
