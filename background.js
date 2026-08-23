@@ -2,6 +2,13 @@
 let chatLedger = null;
 let activeSectionDownload = null;
 const activityDataWorkers = new Map();
+const ACTIVITY_DATA_STEP_TIMEOUT_MS = 30000;
+
+function activityDataFailureMessage(step) {
+    return step === 'work'
+        ? 'Unable to download lesson and assessment data. Course activity data can still load, but lesson counts and assessment completion will be unavailable.'
+        : 'Unable to download course activity data. Lesson and assessment data can still load, but course activity totals will be unavailable.';
+}
 chrome.storage.local.get(null, result => {
     chatLedger = materializeLedgerAliases(result.chatLedger);
     if (chatLedger !== result.chatLedger) chrome.storage.local.set({ chatLedger });
@@ -71,7 +78,11 @@ async function startActivityDataWorker(sourceTabId, step, url, scriptFile) {
     console.info('[CHAT activity data] Hidden worker created.', { sourceTabId, step, windowId: workerWindow.id, tabId: workerTab.id });
 
     const existing = activityDataWorkers.get(sourceTabId) || {};
-    activityDataWorkers.set(sourceTabId, { ...existing, [step]: { windowId: workerWindow.id, tabId: workerTab.id } });
+    const timeoutId = setTimeout(() => {
+        console.error('[CHAT activity data] Worker exceeded its step deadline.', { sourceTabId, step, timeoutMs: ACTIVITY_DATA_STEP_TIMEOUT_MS });
+        finishActivityDataWorker(sourceTabId, step, 'error', activityDataFailureMessage(step));
+    }, ACTIVITY_DATA_STEP_TIMEOUT_MS);
+    activityDataWorkers.set(sourceTabId, { ...existing, [step]: { windowId: workerWindow.id, tabId: workerTab.id, timeoutId } });
     await waitForTabLoad(workerTab.id);
     if (scriptFile) {
         console.info('[CHAT activity data] Injecting worker script.', { sourceTabId, step, tabId: workerTab.id, scriptFile });
@@ -94,6 +105,7 @@ async function finishActivityDataWorker(sourceTabId, step, status = 'complete', 
     const details = worker?.[step];
     sendActivityProgress(sourceTabId, step, status, message);
     if (!details) return;
+    clearTimeout(details.timeoutId);
     const remaining = { ...worker };
     delete remaining[step];
     if (Object.keys(remaining).length) activityDataWorkers.set(sourceTabId, remaining);
@@ -213,7 +225,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 'js/connexus/dataview/getWork.js'
             ).catch(error => {
                 console.error('[CHAT activity data] Lesson and assessment worker failed.', error, { sourceTabId });
-                sendActivityProgress(sourceTabId, 'work', 'error', 'Could not download lesson and assessment data.');
+                finishActivityDataWorker(sourceTabId, 'work', 'error', activityDataFailureMessage('work'));
             });
         });
     }
@@ -268,7 +280,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 .then(() => finishActivityDataWorker(activityTabId, 'work'))
                 .catch(error => {
                     console.error('[CHAT activity data] Lesson and assessment handoff failed.', error, { activityTabId });
-                    sendActivityProgress(activityTabId, 'work', 'error', 'Could not load lesson and assessment data.');
+                    finishActivityDataWorker(activityTabId, 'work', 'error', activityDataFailureMessage('work'));
                 });
         });
     };
@@ -282,7 +294,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             startActivityDataWorker(sender.tab?.id, 'course', request.url)
                 .catch(error => {
                     console.error('[CHAT activity data] Course activity worker failed.', error, { sourceTabId: sender.tab?.id });
-                    sendActivityProgress(sender.tab?.id, 'course', 'error', 'Could not download course activity data.');
+                    finishActivityDataWorker(sender.tab?.id, 'course', 'error', activityDataFailureMessage('course'));
                 });
         } else {
             chrome.tabs.create({ url: request.url, active: request.focused }, function(tab) {
@@ -375,7 +387,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }).then(() => finishActivityDataWorker(activityTabId, 'course'))
 				  .catch(error => {
 					  console.error('[CHAT activity data] Course activity handoff failed.', error, { activityTabId });
-					  sendActivityProgress(activityTabId, 'course', 'error', 'Could not load course activity data.');
+					  finishActivityDataWorker(activityTabId, 'course', 'error', activityDataFailureMessage('course'));
 				  });
 			});
 		}
