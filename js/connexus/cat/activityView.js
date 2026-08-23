@@ -14,14 +14,14 @@ function createActivityDataStatus() {
 	panel.id = 'chatDataStatus';
 	panel.innerHTML = `
 		<div class="chat-data-status-title">CHAT is preparing attendance data</div>
-		<div class="chat-data-step" data-step="work"><span class="chat-data-icon">?</span><span class="chat-data-label"><strong>Step 1</strong> · Download lesson and assessment data</span><a class="chat-data-link" href="${workSource}" target="_blank" rel="noopener noreferrer" title="Open the lesson and assessment Data View" aria-label="Open the lesson and assessment Data View">↗</a></div>
-		<div class="chat-data-step" data-step="course"><span class="chat-data-icon">?</span><span class="chat-data-label"><strong>Step 2</strong> · Download course activity data</span><a class="chat-data-link" href="${courseSource}" target="_blank" rel="noopener noreferrer" title="Open the course activity source" aria-label="Open the course activity source">↗</a></div>`;
+		<div class="chat-data-step" data-step="work"><span class="chat-data-icon" role="status" aria-label="Lesson and assessment data download in progress"></span><span class="chat-data-label"><strong>Step 1</strong> · Download lesson and assessment data</span><a class="chat-data-link" href="${workSource}" target="_blank" rel="noopener noreferrer" title="Open the lesson and assessment Data View" aria-label="Open the lesson and assessment Data View"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59L7.76 14.83l1.41 1.41L19 6.41V10h2V3h-7Z"/></svg></a></div>
+		<div class="chat-data-step" data-step="course"><span class="chat-data-icon" role="status" aria-label="Course activity data download in progress"></span><span class="chat-data-label"><strong>Step 2</strong> · Download course activity data</span><a class="chat-data-link" href="${courseSource}" target="_blank" rel="noopener noreferrer" title="Open the course activity source" aria-label="Open the course activity source"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59L7.76 14.83l1.41 1.41L19 6.41V10h2V3h-7Z"/></svg></a></div>`;
 	const style = document.createElement('style');
 	style.textContent = `
 		#chatDataStatus{margin-top:10px;padding-top:9px;border-top:1px solid #eadbe7;font:14px/1.4 Arial,sans-serif;color:#32182e}
 		.chat-data-status-title{margin-bottom:8px;font-weight:700;color:#722362}
-		.chat-data-step{display:grid;grid-template-columns:20px minmax(0,1fr) 18px;align-items:start;column-gap:9px;padding:5px 0;color:#5f5860}.chat-data-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;line-height:1;border-radius:50%;background:#ece1e9;color:#722362;font-weight:700}.chat-data-link{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;color:#722362;font-size:18px;font-weight:700;line-height:1;text-decoration:none}.chat-data-link:hover{background:#f3eaf1}
-		.chat-data-step[data-state="complete"]{color:#287d37}.chat-data-step[data-state="complete"] .chat-data-icon{background:#2f9e44;color:#fff}.chat-data-step[data-state="error"]{color:#b43a3a}.chat-data-step[data-state="error"] .chat-data-icon{background:#b43a3a;color:#fff}`;
+		.chat-data-step{display:grid;grid-template-columns:20px minmax(0,1fr) 18px;align-items:start;column-gap:9px;padding:5px 0;color:#5f5860}.chat-data-icon{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;line-height:1;border:3px solid #e6d5e1;border-right-color:#722362;border-radius:50%;animation:chat-data-spin .72s linear infinite}.chat-data-link{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;color:#722362;line-height:1;text-decoration:none}.chat-data-link svg{width:18px;height:18px;fill:currentColor}.chat-data-link:hover{background:#f3eaf1}@keyframes chat-data-spin{to{transform:rotate(360deg)}}
+		.chat-data-step[data-state="complete"]{color:#287d37}.chat-data-step[data-state="complete"] .chat-data-icon,.chat-data-step[data-state="error"] .chat-data-icon{border:0;animation:none;font-weight:700}.chat-data-step[data-state="complete"] .chat-data-icon{background:#2f9e44;color:#fff}.chat-data-step[data-state="error"]{color:#b43a3a}.chat-data-step[data-state="error"] .chat-data-icon{background:#b43a3a;color:#fff}`;
 	document.head.appendChild(style);
 	document.body.appendChild(panel);
 }
@@ -31,9 +31,16 @@ function updateActivityDataStatus(step, status, message) {
 	if (!row) return;
 	const icon = row.querySelector('.chat-data-icon');
 	row.dataset.state = status;
-	if (status === 'complete') icon.textContent = '✓';
-	else if (status === 'error') icon.textContent = '!';
-	else icon.textContent = '?';
+	if (status === 'complete') {
+		icon.textContent = '✓';
+		icon.setAttribute('aria-label', 'Download complete');
+	} else if (status === 'error') {
+		icon.textContent = '!';
+		icon.setAttribute('aria-label', 'Download failed');
+	} else {
+		icon.textContent = '';
+		icon.setAttribute('aria-label', 'Download in progress');
+	}
 	if (message) row.querySelector('.chat-data-label').innerHTML = `<strong>Step ${step === 'work' ? '1' : '2'}</strong> · ${message}`;
 }
 
