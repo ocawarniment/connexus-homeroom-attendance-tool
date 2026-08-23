@@ -6,6 +6,7 @@ const activityWorkerGroups = new Map();
 const activityWorkerGroupLocks = new Map();
 const activityWorkerStartLocks = new Map();
 const chatGroupAnimations = new Map();
+const workReloadLoops = new Map();
 const ACTIVITY_DATA_STEP_TIMEOUT_MS = 20000;
 const activityWorkerStorage = chrome.storage.session || chrome.storage.local;
 let activityWorkerPersistence = Promise.resolve();
@@ -73,6 +74,55 @@ function sendActivityProgress(tabId, step, status, message) {
     chrome.tabs.sendMessage(tabId, { type: 'activityDataProgress', step, status, message }).catch(() => {});
 }
 
+function logExpectedTabIssue(context, error, details = {}) {
+    console.warn(`[CHAT] ${context}`, { ...details, message: error?.message || String(error) });
+}
+
+async function safeExecuteScript(injection, context, details) {
+    try {
+        return await chrome.scripting.executeScript(injection);
+    } catch (error) {
+        logExpectedTabIssue(context, error, details);
+        return null;
+    }
+}
+
+async function safeUpdateTab(tabId, updateProperties, context) {
+    try {
+        return await chrome.tabs.update(tabId, updateProperties);
+    } catch (error) {
+        logExpectedTabIssue(context, error, { tabId });
+        return null;
+    }
+}
+
+async function safeRemoveTab(tabId, context) {
+    try {
+        await chrome.tabs.remove(tabId);
+        return true;
+    } catch (error) {
+        logExpectedTabIssue(context, error, { tabId });
+        return false;
+    }
+}
+
+async function getEmbeddedFrameId(tabId, parentUrl) {
+    try {
+        const frames = await chrome.webNavigation.getAllFrames({ tabId });
+        return frames.find(frame => frame.frameId !== 0 && frame.url !== parentUrl)?.frameId ?? null;
+    } catch (error) {
+        logExpectedTabIssue('Unable to inspect course-activity frames.', error, { tabId });
+        return null;
+    }
+}
+
+function stopWorkReloadLoop(tabId) {
+    const loop = workReloadLoops.get(tabId);
+    if (!loop) return;
+    clearTimeout(loop.timeoutId);
+    workReloadLoops.delete(tabId);
+}
+
 function serializeActivityDataWorkers() {
     const workers = {};
     for (const [sourceTabId, steps] of activityDataWorkers.entries()) {
@@ -89,7 +139,7 @@ function persistActivityDataWorkers() {
     activityWorkerPersistence = activityWorkerPersistence
         .catch(() => {})
         .then(() => activityWorkerStorage.set({ activityDataWorkers: snapshot }))
-        .catch(error => console.error('[CHAT activity data] Could not persist worker registry.', error));
+        .catch(error => console.warn('[CHAT activity data] Could not persist worker registry.', error));
     return activityWorkerPersistence;
 }
 
@@ -110,7 +160,7 @@ async function recoverActivityDataWorkers() {
             }
         }
     } catch (error) {
-        console.error('[CHAT activity data] Could not recover prior worker windows.', error);
+        console.warn('[CHAT activity data] Could not recover prior worker windows.', error);
     }
 }
 
@@ -152,7 +202,7 @@ async function waitForTabLoad(tabId, timeoutMs = 30000, signal) {
             callback(value);
         };
         const timeout = setTimeout(() => {
-            console.error('[CHAT activity data] Worker tab timed out while loading.', { tabId, timeoutMs });
+            console.warn('[CHAT activity data] Worker tab timed out while loading.', { tabId, timeoutMs });
             finish(reject, new Error('Background data workspace did not finish loading.'));
         }, timeoutMs);
         const onUpdated = (updatedTabId, changeInfo) => {
@@ -201,8 +251,8 @@ async function createActivityDataWorker(sourceTabId, step, url, scriptFile) {
     const existing = activityDataWorkers.get(sourceTabId) || {};
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
-        console.error('[CHAT activity data] Worker exceeded its step deadline.', { sourceTabId, step, timeoutMs: ACTIVITY_DATA_STEP_TIMEOUT_MS });
-        finishActivityDataWorker(sourceTabId, step, 'error', activityDataFailureMessage(step)).catch(error => console.error('[CHAT activity data] Timed-out worker cleanup failed.', error));
+        console.warn('[CHAT activity data] Worker exceeded its step deadline.', { sourceTabId, step, timeoutMs: ACTIVITY_DATA_STEP_TIMEOUT_MS });
+        finishActivityDataWorker(sourceTabId, step, 'error', activityDataFailureMessage(step)).catch(error => console.warn('[CHAT activity data] Timed-out worker cleanup failed.', error));
     }, ACTIVITY_DATA_STEP_TIMEOUT_MS);
     activityDataWorkers.set(sourceTabId, { ...existing, [step]: { windowId: sourceWindowId, tabId: workerTab.id, groupId, timeoutId, abortController } });
     await persistActivityDataWorkers();
@@ -248,6 +298,7 @@ async function closeActivityDataWorker(sourceTabId, step, { status, message, not
     if (notify && status) sendActivityProgress(sourceTabId, step, status, message);
     if (!details) return;
     clearTimeout(details.timeoutId);
+    stopWorkReloadLoop(details.tabId);
     details.abortController?.abort();
     const remaining = { ...worker };
     delete remaining[step];
@@ -278,17 +329,17 @@ activityWorkerRecovery = recoverActivityDataWorkers();
 
 chrome.tabs.onRemoved.addListener(tabId => {
     if (activityDataWorkers.has(tabId)) {
-        closeAllActivityDataWorkers(tabId, 'The activity page was closed before the data download finished.').catch(error => console.error('[CHAT activity data] Source-tab cleanup failed.', error));
+        closeAllActivityDataWorkers(tabId, 'The activity page was closed before the data download finished.').catch(error => console.warn('[CHAT activity data] Source-tab cleanup failed.', error));
         return;
     }
     const worker = findActivityWorkerByTab(tabId);
-    if (worker) finishActivityDataWorker(worker.sourceTabId, worker.step, 'error', activityDataFailureMessage(worker.step)).catch(error => console.error('[CHAT activity data] Worker-tab cleanup failed.', error));
+    if (worker) finishActivityDataWorker(worker.sourceTabId, worker.step, 'error', activityDataFailureMessage(worker.step)).catch(error => console.warn('[CHAT activity data] Worker-tab cleanup failed.', error));
 });
 
 chrome.windows.onRemoved.addListener(windowId => {
     const worker = findActivityWorkerByWindow(windowId);
-    if (worker) finishActivityDataWorker(worker.sourceTabId, worker.step, 'error', activityDataFailureMessage(worker.step)).catch(error => console.error('[CHAT activity data] Worker-window cleanup failed.', error));
-    if (activeSectionDownload?.windowId === windowId) finishSectionDownload('error', 'The CHAT download group was closed before the download finished.').catch(error => console.error('Section-download window cleanup failed.', error));
+    if (worker) finishActivityDataWorker(worker.sourceTabId, worker.step, 'error', activityDataFailureMessage(worker.step)).catch(error => console.warn('[CHAT activity data] Worker-window cleanup failed.', error));
+    if (activeSectionDownload?.windowId === windowId) finishSectionDownload('error', 'The CHAT download group was closed before the download finished.').catch(error => console.warn('Section-download window cleanup failed.', error));
 });
 
 chrome.tabGroups.onRemoved.addListener(group => stopChatGroupAnimation(group.id));
@@ -331,7 +382,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         startSectionDownload(request.sectionId, sender.tab?.windowId)
             .then(() => sendResponse({ started: true }))
             .catch(async error => {
-                console.error('Unable to start section download:', error);
+                console.warn('Unable to start section download:', error);
                 if (activeSectionDownload) await finishSectionDownload('error', 'Unable to start the section download.');
                 else await updateDownloadProgress({ status: 'error', message: 'Unable to start the section download.' });
                 sendResponse({ started: false, error: error.message });
@@ -378,7 +429,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const result = await chrome.scripting.executeScript({ target: { tabId }, files: ['js/services/waitAndScrape.js'] });
                 sendResponse(result[0].result);
             } catch (error) {
-                console.error('[CHAT activity data] Prerequisite value scrape failed.', { url: request.url, tabId, error: error.message, stack: error.stack });
+                console.warn('[CHAT activity data] Prerequisite value scrape failed.', { url: request.url, tabId, error: error.message });
                 sendResponse(null);
             } finally {
                 if (request.hidden && sourceTabId) {
@@ -400,45 +451,59 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 'https://www.connexus.com/webuser/dataview.aspx?idWebuser=' + result.studentID + '&idDataview=410',
                 'js/connexus/dataview/getWork.js'
             ).catch(error => {
-                console.error('[CHAT activity data] Lesson and assessment worker failed.', error, { sourceTabId });
-                finishActivityDataWorker(sourceTabId, 'work', 'error', activityDataFailureMessage('work'));
+                console.warn('[CHAT activity data] Lesson and assessment worker failed.', { sourceTabId, message: error.message });
+                finishActivityDataWorker(sourceTabId, 'work', 'error', activityDataFailureMessage('work')).catch(cleanupError => console.warn('[CHAT activity data] Lesson worker cleanup failed.', cleanupError));
             });
         });
     }
 
     if (request.type == "reloadWork") {
-        function checkLoad() {
-            chrome.storage.local.get(null, function(result) {
-                setTimeout(function() {
-                    if(result.workReload == false) {
-                        chrome.scripting.executeScript({
-                            target: { tabId: sender.tab.id },
-                            func: () => {
-                                if(document.getElementsByClassName("cxAlert cxAlertVisible").length == 1){
-                                    chrome.runtime.sendMessage({type: "saveWork"});
-                                }
-                            }
-                        });
-                        if(loopCount<=15) {
-                            loopCount = loopCount + 1;
-                            checkLoad();
-                        }
+        const workerTabId = sender.tab?.id;
+        if (!workerTabId) return;
+        stopWorkReloadLoop(workerTabId);
+        chrome.storage.local.set({ workReload: false });
+        let attempt = 0;
+        const checkLoad = async () => {
+            if (!findActivityWorkerByTab(workerTabId) || attempt >= 16) {
+                stopWorkReloadLoop(workerTabId);
+                return;
+            }
+            const { workReload } = await chrome.storage.local.get('workReload');
+            if (workReload) {
+                stopWorkReloadLoop(workerTabId);
+                return;
+            }
+            const result = await safeExecuteScript({
+                target: { tabId: workerTabId },
+                func: () => {
+                    if (document.getElementsByClassName('cxAlert cxAlertVisible').length === 1) {
+                        chrome.runtime.sendMessage({ type: 'saveWork' });
                     }
-                }, 1000);
-            });
-        }
-        loopCount=0;
-        chrome.storage.local.set({'workReload': false});
-        checkLoad();
+                }
+            }, 'Lesson-data worker closed before reload completed.', { tabId: workerTabId });
+            if (!result) {
+                stopWorkReloadLoop(workerTabId);
+                return;
+            }
+            attempt += 1;
+            const timeoutId = setTimeout(() => checkLoad().catch(error => logExpectedTabIssue('Lesson-data reload check failed.', error, { tabId: workerTabId })), 1000);
+            workReloadLoops.set(workerTabId, { timeoutId });
+        };
+        const timeoutId = setTimeout(() => checkLoad().catch(error => logExpectedTabIssue('Lesson-data reload check failed.', error, { tabId: workerTabId })), 1000);
+        workReloadLoops.set(workerTabId, { timeoutId });
     }
     
     if (request.type == "saveWork") {
         chrome.storage.local.set({"workReload": true});
         // Keep the hidden worker open until its values have been copied back to the activity page.
-        chrome.scripting.executeScript({
+        safeExecuteScript({
             target: { tabId: sender.tab.id },
             files: ['js/background/storeWork.js']
-        });
+        }, 'Lesson-data worker closed before values were saved.', { tabId: sender.tab?.id })
+            .then(result => {
+                if (!result) return finishActivityDataWorker(findActivityWorkerByTab(sender.tab?.id)?.sourceTabId, 'work', 'error', activityDataFailureMessage('work'));
+            })
+            .catch(error => logExpectedTabIssue('Unable to finish lesson-data cleanup.', error));
     }
 
     if (request.type == "closeWorkDVs") {
@@ -455,8 +520,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             updateWorkCounts(activityTabId)
                 .then(() => finishActivityDataWorker(activityTabId, 'work'))
                 .catch(error => {
-                    console.error('[CHAT activity data] Lesson and assessment handoff failed.', error, { activityTabId });
-                    finishActivityDataWorker(activityTabId, 'work', 'error', activityDataFailureMessage('work'));
+                    console.warn('[CHAT activity data] Lesson and assessment handoff failed.', { activityTabId, message: error.message });
+                    return finishActivityDataWorker(activityTabId, 'work', 'error', activityDataFailureMessage('work'));
                 });
         });
     };
@@ -469,8 +534,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.hidden) {
             startActivityDataWorker(sender.tab?.id, 'course', request.url)
                 .catch(error => {
-                    console.error('[CHAT activity data] Course activity worker failed.', error, { sourceTabId: sender.tab?.id });
-                    finishActivityDataWorker(sender.tab?.id, 'course', 'error', activityDataFailureMessage('course'));
+                    console.warn('[CHAT activity data] Course activity worker failed.', { sourceTabId: sender.tab?.id, message: error.message });
+                    return finishActivityDataWorker(sender.tab?.id, 'course', 'error', activityDataFailureMessage('course'));
                 });
         } else {
             chrome.tabs.create({ url: request.url, active: request.focused }, function(tab) {
@@ -478,7 +543,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
         }
         if(request.closeSender){
-            chrome.tabs.remove(sender.tab.id);
+            safeRemoveTab(sender.tab.id, 'Source activity tab was already closed.');
         }
     }
 
@@ -532,21 +597,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // get course names from CAT weekView
     if (request.type == "getCatTime") {
-        chrome.webNavigation.getAllFrames({tabId:sender.tab.id},function(frames){
-            // find the correct frame
-            frames.forEach(frame => {
-                if(frame.url !== sender.tab.url) {
-                    catFrameId = frame.frameId;
-                }
-            })
-            // call the function on the the inner frame
-            chrome.scripting.executeScript({
-                target: { tabId: sender.tab.id, frameIds: [catFrameId] },
-                files: ["js/connexus/cat/activityTracker/getCatTime.js"]
-            }).then(function(results){
-                // handle results
-            });
-        });
+        (async () => {
+            const tabId = sender.tab?.id;
+            const catFrameId = tabId && await getEmbeddedFrameId(tabId, sender.tab?.url);
+            if (catFrameId === null || catFrameId === undefined) return;
+            await safeExecuteScript({ target: { tabId, frameIds: [catFrameId] }, files: ['js/connexus/cat/activityTracker/getCatTime.js'] }, 'Unable to read course activity data.', { tabId, catFrameId });
+        })().catch(error => logExpectedTabIssue('Course activity frame setup failed.', error));
     }
 
     if (request.type == 'loadCatTime'){
@@ -556,43 +612,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			chrome.storage.local.get(null, function(result) {
                 console.log('attempting to load cat time course activity', result);
 				const activityTabId = sourceTabId || result.actLogID;
-				chrome.tabs.update(activityTabId, {active: false});
-				chrome.scripting.executeScript({
+				safeUpdateTab(activityTabId, {active: false}, 'Activity page closed before course data could load.')
+					.then(tab => tab && safeExecuteScript({
 					target: { tabId: activityTabId },
 					files: ['/js/connexus/cat/activityLog/loadCatTime.js']
-                }).then(() => finishActivityDataWorker(activityTabId, 'course'))
+					}, 'Activity page closed before course data could load.', { activityTabId }))
+					.then(result => finishActivityDataWorker(activityTabId, 'course', result ? 'complete' : 'error', result ? undefined : activityDataFailureMessage('course')))
 				  .catch(error => {
-					  console.error('[CHAT activity data] Course activity handoff failed.', error, { activityTabId });
-					  finishActivityDataWorker(activityTabId, 'course', 'error', activityDataFailureMessage('course'));
+					  console.warn('[CHAT activity data] Course activity handoff failed.', { activityTabId, message: error.message });
+					  return finishActivityDataWorker(activityTabId, 'course', 'error', activityDataFailureMessage('course'));
 				  });
 			});
 		}
 
     if (request.type == "loadCAT") {
-        chrome.webNavigation.getAllFrames({tabId:sender.tab.id},function(frames){
-            var catFrameId = frames[1].frameId;
-            chrome.scripting.executeScript({
-                target: { tabId: sender.tab.id, frameIds: [catFrameId] },
-                files: ["js/connexus/cat/activityTracker/getTime.js"]
-            }).then(function(results){
-                //Handle any results
-            });
-        });
+        (async () => {
+            const tabId = sender.tab?.id;
+            const catFrameId = tabId && await getEmbeddedFrameId(tabId, sender.tab?.url);
+            if (catFrameId === null || catFrameId === undefined) return;
+            await safeExecuteScript({ target: { tabId, frameIds: [catFrameId] }, files: ['js/connexus/cat/activityTracker/getTime.js'] }, 'Unable to load CAT time.', { tabId, catFrameId });
+        })().catch(error => logExpectedTabIssue('CAT frame setup failed.', error));
     }
 
     if (request.type == "cteccpAdjust") {
-        console.log(request);
-        chrome.webNavigation.getAllFrames({tabId:sender.tab.id},function(frames){
-            // find the correct frame
-            frames.forEach(frame => {
-                if(frame.url !== sender.tab.url) {
-                    catFrameId = frame.frameId;
-                }
-            })
-            // store variables to the inner frame
-            console.log(frames);
-            chrome.scripting.executeScript({
-                target: { tabId: sender.tab.id, frameIds: [catFrameId] },
+        (async () => {
+            const tabId = sender.tab?.id;
+            const catFrameId = tabId && await getEmbeddedFrameId(tabId, sender.tab?.url);
+            if (catFrameId === null || catFrameId === undefined) return;
+            const configured = await safeExecuteScript({
+                target: { tabId, frameIds: [catFrameId] },
                 func: (callback, dailyHours, adjType, baseQuery) => {
                     window.callback = callback;
                     window.dailyHours = dailyHours;
@@ -600,31 +648,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     window.baseQuery = baseQuery;
                 },
                 args: [request.callback, request.dailyHours, request.adjType, request.baseQuery]
-            }).then(() => {
-                // call the function on the the inner frame
-                return chrome.scripting.executeScript({
-                    target: { tabId: sender.tab.id, frameIds: [catFrameId] },
-                    files: ["js/connexus/cat/activityTracker/cteccpAdjust.js"]
-                });
-            }).then(function(results){
-                //Handle any results
-            });
-        });
+            }, 'Unable to configure the CAT adjustment.', { tabId, catFrameId });
+            if (!configured) return;
+            await safeExecuteScript({ target: { tabId, frameIds: [catFrameId] }, files: ['js/connexus/cat/activityTracker/cteccpAdjust.js'] }, 'Unable to apply the CAT adjustment.', { tabId, catFrameId });
+        })().catch(error => logExpectedTabIssue('CAT adjustment setup failed.', error));
     }
 
     if (request.type == "cteccpCheck") {
-        console.log(request);
-        chrome.webNavigation.getAllFrames({tabId:sender.tab.id},function(frames){
-            // find the correct frame
-            frames.forEach(frame => {
-                if(frame.url !== sender.tab.url) {
-                    catFrameId = frame.frameId;
-                }
-            })
-            // store variables to the inner frame
-            console.log(frames);
-            chrome.scripting.executeScript({
-                target: { tabId: sender.tab.id, frameIds: [catFrameId] },
+        (async () => {
+            const tabId = sender.tab?.id;
+            const catFrameId = tabId && await getEmbeddedFrameId(tabId, sender.tab?.url);
+            if (catFrameId === null || catFrameId === undefined) return;
+            const configured = await safeExecuteScript({
+                target: { tabId, frameIds: [catFrameId] },
                 func: (approve, dailyHours, adjType, baseQuery) => {
                     window.approve = approve;
                     window.dailyHours = dailyHours;
@@ -632,64 +668,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     window.baseQuery = baseQuery;
                 },
                 args: [request.approve, request.dailyHours, request.adjType, request.baseQuery]
-            }).then(() => {
-                // call the function on the the inner frame
-                return chrome.scripting.executeScript({
-                    target: { tabId: sender.tab.id, frameIds: [catFrameId] },
-                    files: ["js/connexus/cat/activityTracker/cteccpCheck.js"]
-                });
-            }).then(function(results){
-                // handle results
-            });
-        });
+            }, 'Unable to configure the CAT check.', { tabId, catFrameId });
+            if (!configured) return;
+            await safeExecuteScript({ target: { tabId, frameIds: [catFrameId] }, files: ['js/connexus/cat/activityTracker/cteccpCheck.js'] }, 'Unable to run the CAT check.', { tabId, catFrameId });
+        })().catch(error => logExpectedTabIssue('CAT check setup failed.', error));
     }
 
     if (request.type == "cteccpSave") {
-        console.log('trying to save...');
-        chrome.webNavigation.getAllFrames({tabId:sender.tab.id},function(frames){
-            // find the correct frame
-            frames.forEach(frame => {
-                console.log(frame);
-                if(frame.url == sender.tab.url) {
-                    parentFrameId = frame.frameId;
-                }
-            })
-            // send to the outter frame
-            chrome.scripting.executeScript({
-                target: { tabId: sender.tab.id, allFrames: true },
-                func: () => {
-                    document.querySelector('.cxPrimaryBtn').click();
-                }
-            }).then(function(results){
-                //Handle any results
-            });
-        });
+        safeExecuteScript({
+            target: { tabId: sender.tab?.id, allFrames: true },
+            func: () => document.querySelector('.cxPrimaryBtn')?.click()
+        }, 'Unable to save the CAT adjustment.', { tabId: sender.tab?.id });
     }
 
     if (request.type == "cteccpAlertResults") {
         console.log('cteccpStatus: ' + request.correct);
 		const activityWorker = findActivityWorkerByTab(sender.tab?.id);
 		const sourceTabId = activityWorker?.sourceTabId;
-        chrome.storage.local.get(null, (results)=>{
-            var correct = request.correct;
-			const activityTabId = sourceTabId || results.actLogID;
-            if(correct == false) {
-                const tabId = activityTabId;
-                chrome.tabs.update(tabId, {active: false});
-                chrome.scripting.executeScript({
-                    target: { tabId: tabId },
-                    files: ['js/connexus/cat/activityLog/cteccpInitiateChange.js']
-                });
-            } else {
-                const tabId = activityTabId;
-                chrome.tabs.update(tabId, {active: false});
-                chrome.scripting.executeScript({
-                    target: { tabId: tabId },
-                    files: ['js/connexus/cat/activityLog/cteccpConfirmTime.js']
-                });
-            }
-			finishActivityDataWorker(activityTabId, 'course');
-        })
+        chrome.storage.local.get(null, results => {
+            (async () => {
+				const activityTabId = sourceTabId || results.actLogID;
+                const tab = await safeUpdateTab(activityTabId, { active: false }, 'Activity page closed before the course adjustment completed.');
+                if (!tab) {
+                    await finishActivityDataWorker(activityTabId, 'course', 'error', activityDataFailureMessage('course'));
+                    return;
+                }
+                const scriptResult = await safeExecuteScript({
+                    target: { tabId: activityTabId },
+                    files: [request.correct ? 'js/connexus/cat/activityLog/cteccpConfirmTime.js' : 'js/connexus/cat/activityLog/cteccpInitiateChange.js']
+                }, 'Activity page closed before the course adjustment completed.', { activityTabId });
+				await finishActivityDataWorker(activityTabId, 'course', scriptResult ? 'complete' : 'error', scriptResult ? undefined : activityDataFailureMessage('course'));
+            })().catch(error => logExpectedTabIssue('Course adjustment cleanup failed.', error));
+        });
     }
 
     if (request.type == "activityLogOpenAndSave") {
@@ -867,7 +877,7 @@ async function recoverSectionDownloadWorker() {
         await updateDownloadProgress({ status: 'error', message: 'A previous hidden section download was stopped safely. Please restart the download.' });
         console.warn('Closed section-download worker left by a previous service-worker session.', worker);
     } catch (error) {
-        console.error('Could not recover a prior section-download worker.', error);
+        console.warn('Could not recover a prior section-download worker.', error);
     }
 }
 
@@ -1108,11 +1118,7 @@ function closeWorkDVs() {
             console.log(tab);
 			// if the url matches, remove the warning using a message then close the tab
 			if (tab.url.match(/https?:\/\/www\.connexus\.com\/dataview\/410.*/g)) {
-                try{
-                    console.log('DELETEOING');
-                    chrome.tabs.remove(tab.id)
-                }catch(err){};
-                console.log('CLOSED');
+                safeRemoveTab(tab.id, 'Lesson and assessment tab was already closed.');
 			};
 		});
 	  });
@@ -1126,7 +1132,7 @@ function focusOnAL() {
 			// if the url matches, focus on it
 			if (tab.url.match(/https?:\/\/www\.connexus\.com\/webuser\/activity\/activity\.aspx\?idWebuser=.*/g)) {
 				//focus on the new activities log
-				chrome.tabs.update(tab.id, {active: true});
+				safeUpdateTab(tab.id, {active: true}, 'Activity page was already closed.');
 			};
 		});
 	  });
@@ -1143,8 +1149,9 @@ function updateWorkCounts(activitiesLogID) {
 
 function setDebugStudents(){
     chrome.storage.local.get(null, result => {
+        let students;
         if(result.userSettings.school == 'oca') {
-            let students = {
+            students = {
                 "STDEBUG1": {
                     "attendanceMetric":1.5,
                     "ccpHours":0,
@@ -1267,7 +1274,7 @@ function setDebugStudents(){
                 }
             }
         } else if(['grca', 'ohbca'].includes(result.userSettings.school)){
-            let students = {
+            students = {
                 "STDEBUG1": {
                     "attendanceMetric":1.5,
                     "ccpHours":0,
@@ -1390,7 +1397,7 @@ function setDebugStudents(){
                 }
             }
         }
-        chrome.storage.local.set({students: students});
+        if (students) chrome.storage.local.set({students});
     })
 }
 // Set the side panel to open when the extension icon is clicked
