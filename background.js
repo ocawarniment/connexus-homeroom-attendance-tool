@@ -28,9 +28,9 @@ function stopChatGroupAnimation(groupId) {
 
 function startChatGroupAnimation(groupId) {
     if (chatGroupAnimations.has(groupId)) return;
-    let dotCount = 0;
+    let dotCount = -1;
     const updateTitle = async () => {
-        dotCount = (dotCount % 3) + 1;
+        dotCount = (dotCount + 1) % 4;
         try {
             await chrome.tabGroups.update(groupId, { title: `CHAT — Downloading${'.'.repeat(dotCount)}`, collapsed: true });
         } catch (error) {
