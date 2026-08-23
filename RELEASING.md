@@ -1,6 +1,6 @@
 # Releasing CHAT
 
-1. Update the version in both `manifest.json` and `package.json`.
+1. Update the extension version in `manifest.json`.
 2. Commit and push the completed extension changes to `master`.
 3. In GitHub, open **Actions** and select **Create CHAT release**.
 4. Select **Run workflow**, enter the exact extension version (for example, `4.0.0`), and start it.

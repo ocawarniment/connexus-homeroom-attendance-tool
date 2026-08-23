@@ -36,9 +36,8 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
           manifest_version="$(node -p "require('./manifest.json').version")"
-          package_version="$(node -p "require('./package.json').version")"
-          if [ "$RELEASE_VERSION" != "$manifest_version" ] || [ "$RELEASE_VERSION" != "$package_version" ]; then
-            echo "The requested version ($RELEASE_VERSION) must match manifest.json ($manifest_version) and package.json ($package_version)."
+          if [ "$RELEASE_VERSION" != "$manifest_version" ]; then
+            echo "The requested version ($RELEASE_VERSION) must match manifest.json ($manifest_version)."
             exit 1
           fi
 
