@@ -14,17 +14,28 @@ function createActivityDataStatus() {
 	const panel = document.createElement('div');
 	panel.id = 'chatDataStatus';
 	panel.innerHTML = `
-		<div class="chat-data-status-title">CHAT is preparing attendance data</div>
+		<div class="chat-data-status-heading"><div class="chat-data-status-title">CHAT is preparing attendance data</div><button class="chat-data-status-toggle" type="button" aria-expanded="true" aria-label="Collapse download details" title="Collapse download details">⌄</button></div>
 		<div class="chat-data-step" data-step="work"><span class="chat-data-icon" role="status" aria-label="Lesson and assessment data download in progress"></span><span class="chat-data-label"><strong>Step 1</strong> · Download lesson and assessment data</span><a class="chat-data-link" href="${workSource}" target="_blank" rel="noopener noreferrer" title="Open the lesson and assessment Data View" aria-label="Open the lesson and assessment Data View"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59L7.76 14.83l1.41 1.41L19 6.41V10h2V3h-7Z"/></svg></a></div>
 		<div class="chat-data-step" data-step="course"><span class="chat-data-icon" role="status" aria-label="Course activity data download in progress"></span><span class="chat-data-label"><strong>Step 2</strong> · Download course activity data</span><a class="chat-data-link" href="${courseSource}" target="_blank" rel="noopener noreferrer" title="Open the course activity source" aria-label="Open the course activity source"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59L7.76 14.83l1.41 1.41L19 6.41V10h2V3h-7Z"/></svg></a></div>`;
 	const style = document.createElement('style');
 	style.textContent = `
 		#chatDataStatus{margin-top:10px;padding-top:9px;border-top:1px solid #eadbe7;font:14px/1.4 Arial,sans-serif;color:#32182e}
-		.chat-data-status-title{margin-bottom:8px;font-weight:700;color:#722362}
-		.chat-data-step{display:grid;grid-template-columns:20px minmax(0,1fr) 18px;align-items:start;column-gap:9px;padding:5px 0;color:#5f5860}.chat-data-icon{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;line-height:1;border:3px solid #e6d5e1;border-right-color:#722362;border-radius:50%;animation:chat-data-spin .72s linear infinite}.chat-data-link{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;color:#722362;line-height:1;text-decoration:none}.chat-data-link svg{width:18px;height:18px;fill:currentColor}.chat-data-link:hover{background:#f3eaf1}@keyframes chat-data-spin{to{transform:rotate(360deg)}}
+		.chat-data-status-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.chat-data-status-title{margin-bottom:8px;font-weight:700;color:#722362}.chat-data-status-toggle{display:none;box-sizing:border-box;width:24px;height:24px;margin:-4px 0 4px;padding:0;border:0;border-radius:50%;background:transparent;color:#722362;font:700 23px/17px Arial,sans-serif;cursor:pointer}.chat-data-status-toggle:hover,.chat-data-status-toggle:focus{background:#f3eaf1;outline:0}.chat-data-status-finished .chat-data-status-toggle{display:inline-flex;align-items:center;justify-content:center}.chat-data-step{display:grid;grid-template-columns:20px minmax(0,1fr) 18px;align-items:start;column-gap:9px;max-height:80px;padding:5px 0;overflow:hidden;color:#5f5860;opacity:1;transition:max-height .3s ease,padding .3s ease,opacity .22s ease}.chat-data-status-collapsed .chat-data-step{max-height:0;padding-top:0;padding-bottom:0;opacity:0;pointer-events:none}.chat-data-status-collapsed .chat-data-status-title{margin-bottom:0}.chat-data-status-collapsed .chat-data-status-toggle{transform:rotate(0deg)}.chat-data-status-toggle{transform:rotate(180deg);transition:transform .25s ease}.chat-data-icon{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;line-height:1;border:3px solid #e6d5e1;border-right-color:#722362;border-radius:50%;animation:chat-data-spin .72s linear infinite}.chat-data-link{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;color:#722362;line-height:1;text-decoration:none}.chat-data-link svg{width:18px;height:18px;fill:currentColor}.chat-data-link:hover{background:#f3eaf1}@keyframes chat-data-spin{to{transform:rotate(360deg)}}
 		.chat-data-step[data-state="complete"]{color:#287d37}.chat-data-step[data-state="complete"] .chat-data-icon,.chat-data-step[data-state="error"] .chat-data-icon{border:0;animation:none;font-weight:700}.chat-data-step[data-state="complete"] .chat-data-icon{background:#2f9e44;color:#fff}.chat-data-step[data-state="error"]{color:#b43a3a}.chat-data-step[data-state="error"] .chat-data-icon{background:#b43a3a;color:#fff}`;
 	document.head.appendChild(style);
 	document.body.appendChild(panel);
+	panel.querySelector('.chat-data-status-toggle').addEventListener('click', () => {
+		setActivityDataStatusCollapsed(panel, !panel.classList.contains('chat-data-status-collapsed'));
+	});
+}
+
+function setActivityDataStatusCollapsed(panel, collapsed) {
+	panel.classList.toggle('chat-data-status-collapsed', collapsed);
+	const toggle = panel.querySelector('.chat-data-status-toggle');
+	if (!toggle) return;
+	toggle.setAttribute('aria-expanded', String(!collapsed));
+	toggle.setAttribute('aria-label', collapsed ? 'Show download details' : 'Collapse download details');
+	toggle.setAttribute('title', collapsed ? 'Show download details' : 'Collapse download details');
 }
 
 function updateActivityDataStatus(step, status, message) {
@@ -50,10 +61,9 @@ function updateActivityDataStatus(step, status, message) {
 	const isFinished = states.length > 0 && states.every(state => state === 'complete' || state === 'error');
 	if (activityDataStatusRemovalTimer) clearTimeout(activityDataStatusRemovalTimer);
 	if (isFinished) {
+		panel.classList.add('chat-data-status-finished');
 		activityDataStatusRemovalTimer = setTimeout(() => {
-			panel.style.transition = 'opacity .35s ease';
-			panel.style.opacity = '0';
-			setTimeout(() => panel.remove(), 350);
+			setActivityDataStatusCollapsed(panel, true);
 		}, 4000);
 	}
 }
