@@ -20,8 +20,16 @@ if(auto == 'saveandreload') {
     chrome.runtime.sendMessage({type: 'cteccpAdjust', dailyHours: time, adjType: course, baseQuery: baseQuery, callback: 'reload'});
 }
 if(auto == 'check') {
-    console.log('sending message to back to check');
-    chrome.runtime.sendMessage({type: 'cteccpCheck', dailyHours: time, adjType: course, baseQuery: baseQuery, approve: false});
+    const pageText = document.body?.innerText || '';
+    if (/an error occurred while loading this page|missing some information needed to load/i.test(pageText)) {
+        chrome.runtime.sendMessage({
+            type: 'cteccpUnavailable',
+            reason: 'CHAT could not verify CTE/CCP hours because Connexus Activity Tracker is temporarily unavailable. Review the student’s hours manually before approving attendance.'
+        });
+    } else {
+        console.log('sending message to back to check');
+        chrome.runtime.sendMessage({type: 'cteccpCheck', dailyHours: time, adjType: course, baseQuery: baseQuery, approve: false});
+    }
 }
 if(auto == 'getCourses') {
     chrome.runtime.sendMessage({type: 'getCatTime'});

@@ -116,6 +116,42 @@ async function getEmbeddedFrameId(tabId, parentUrl) {
     }
 }
 
+async function restoreCteCcpManualReview(workerTabId, reason) {
+    const worker = findActivityWorkerByTab(workerTabId);
+    const sourceTabId = worker?.sourceTabId;
+    if (!sourceTabId) return;
+
+    await safeExecuteScript({
+        target: { tabId: sourceTabId },
+        func: (message) => {
+            const approveButton = document.querySelector('#btnApprove');
+            const course = new URL(location.href).searchParams.has('ccp') ? 'CCP' : 'CTE';
+            if (approveButton) {
+                approveButton.disabled = false;
+                approveButton.value = `Approve (manual ${course} review)`;
+                approveButton.title = message;
+                approveButton.style.removeProperty('background');
+                approveButton.style.removeProperty('background-image');
+                approveButton.style.removeProperty('border');
+                approveButton.style.removeProperty('color');
+            }
+
+            let notice = document.getElementById('chatCteCcpUnavailable');
+            if (!notice) {
+                notice = document.createElement('div');
+                notice.id = 'chatCteCcpUnavailable';
+                notice.setAttribute('role', 'alert');
+                notice.style.cssText = 'margin:10px 0;padding:10px 12px;border:1px solid #d89a32;border-radius:4px;background:#fff5df;color:#70450b;font:14px/1.4 Arial,sans-serif;';
+                document.querySelector('.formFields')?.appendChild(notice);
+            }
+            notice.textContent = message;
+        },
+        args: [reason]
+    }, 'Unable to restore the activity page after the CTE/CCP check failed.', { workerTabId, sourceTabId });
+
+    await finishActivityDataWorker(sourceTabId, 'course', 'error', 'Course Activity is temporarily unavailable. Review CTE/CCP hours manually.');
+}
+
 function stopWorkReloadLoop(tabId) {
     const loop = workReloadLoops.get(tabId);
     if (!loop) return;
@@ -437,13 +473,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 tabId = workerTab?.id;
                 if (!tabId) throw new Error('Unable to create the data scrape workspace.');
                 await waitForTabLoad(tabId);
-                await chrome.scripting.executeScript({
+                const result = await chrome.scripting.executeScript({
                     target: { tabId },
-                    func: (cssSelector) => { window.cssSelector = cssSelector; },
+                    func: async (cssSelector) => {
+                        const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+                        for (let attempt = 0; attempt < 20; attempt += 1) {
+                            const element = document.querySelector(cssSelector);
+                            if (element) {
+                                const value = 'value' in element ? element.value : element.textContent;
+                                return String(value ?? '').trim();
+                            }
+                            await pause(250);
+                        }
+                        return null;
+                    },
                     args: [request.cssSelector]
                 });
-                const result = await chrome.scripting.executeScript({ target: { tabId }, files: ['js/services/waitAndScrape.js'] });
-                sendResponse(result[0].result);
+                const value = result?.[0]?.result;
+                if (value === null || value === undefined || value === '') {
+                    throw new Error(`No value was found for ${request.cssSelector}.`);
+                }
+                sendResponse(value);
             } catch (error) {
                 console.warn('[CHAT activity data] Prerequisite value scrape failed.', { url: request.url, tabId, error: error.message });
                 sendResponse(null);
@@ -649,6 +699,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             .catch(error => logExpectedTabIssue('Unable to close the failed course activity worker.', error, { sourceTabId }));
     }
 
+    if (request.type === 'cteccpUnavailable') {
+        restoreCteCcpManualReview(sender.tab?.id, request.reason || 'CHAT could not verify CTE/CCP hours because Connexus Activity Tracker is temporarily unavailable. Review the student’s hours manually before approving attendance.')
+            .catch(error => logExpectedTabIssue('Unable to recover from an unavailable CTE/CCP check.', error, { workerTabId: sender.tab?.id }));
+    }
+
+    if (request.type === 'closeTab') {
+        restoreCteCcpManualReview(sender.tab?.id, 'CHAT could not find the CTE/CCP course in Activity Tracker. Review the student’s hours manually before approving attendance.')
+            .catch(error => logExpectedTabIssue('Unable to recover from a missing CTE/CCP course.', error, { workerTabId: sender.tab?.id }));
+    }
+
     if (request.type == "loadCAT") {
         (async () => {
             const tabId = sender.tab?.id;
@@ -682,7 +742,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         (async () => {
             const tabId = sender.tab?.id;
             const catFrameId = tabId && await getEmbeddedFrameId(tabId, sender.tab?.url);
-            if (catFrameId === null || catFrameId === undefined) return;
+            if (catFrameId === null || catFrameId === undefined) {
+                await restoreCteCcpManualReview(tabId, 'CHAT could not verify CTE/CCP hours because Connexus Activity Tracker is temporarily unavailable. Review the student’s hours manually before approving attendance.');
+                return;
+            }
             const configured = await safeExecuteScript({
                 target: { tabId, frameIds: [catFrameId] },
                 func: (approve, dailyHours, adjType, baseQuery) => {
@@ -693,9 +756,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 },
                 args: [request.approve, request.dailyHours, request.adjType, request.baseQuery]
             }, 'Unable to configure the CAT check.', { tabId, catFrameId });
-            if (!configured) return;
-            await safeExecuteScript({ target: { tabId, frameIds: [catFrameId] }, files: ['js/connexus/cat/activityTracker/cteccpCheck.js'] }, 'Unable to run the CAT check.', { tabId, catFrameId });
-        })().catch(error => logExpectedTabIssue('CAT check setup failed.', error));
+            if (!configured) {
+                await restoreCteCcpManualReview(tabId, 'CHAT could not verify CTE/CCP hours. Review the student’s hours manually before approving attendance.');
+                return;
+            }
+            const checkStarted = await safeExecuteScript({ target: { tabId, frameIds: [catFrameId] }, files: ['js/connexus/cat/activityTracker/cteccpCheck.js'] }, 'Unable to run the CAT check.', { tabId, catFrameId });
+            if (!checkStarted) await restoreCteCcpManualReview(tabId, 'CHAT could not verify CTE/CCP hours. Review the student’s hours manually before approving attendance.');
+        })().catch(error => restoreCteCcpManualReview(sender.tab?.id, 'CHAT could not verify CTE/CCP hours. Review the student’s hours manually before approving attendance.').catch(recoveryError => logExpectedTabIssue('CAT check recovery failed.', recoveryError, { workerTabId: sender.tab?.id })));
     }
 
     if (request.type == "cteccpSave") {
