@@ -168,13 +168,13 @@ const App = () => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box className={isLightMode ? 'sidepanel light-mode' : 'sidepanel dark-mode'} sx={{ height: '100vh', minHeight: '100vh', pb: 2, position: 'relative', overflow: 'hidden', ...boardBackground, '& > :not(.chalk-tray):not(.board-fade)': { position: 'relative', zIndex: 1 } }}>
+      <Box className={isLightMode ? 'sidepanel light-mode' : 'sidepanel dark-mode'} sx={{ height: '100vh', minHeight: '100vh', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', ...boardBackground, '& > :not(.chalk-tray):not(.board-fade)': { position: 'relative', zIndex: 1 } }}>
         <Header 
           school={chatData?.userSettings?.school}
           onSettingsClick={() => setSettingsOpen(true)}
         />
         
-        <Box sx={{ px: 1, pb: 1, minHeight: 0, overflow: 'hidden' }}>
+        <Box sx={{ px: 1, pb: '58px', flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <DownloadSection 
             currentApproval={chatData?.currentApproval || {}}
             userSettings={chatData?.userSettings || {}}

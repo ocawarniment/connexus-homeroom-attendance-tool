@@ -88,7 +88,7 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove, sectionNa
   });
 
   return (
-    <Card elevation={1} sx={{ borderRadius: 1, overflow: 'hidden', backgroundColor: 'rgba(255, 255, 255, .86)' }}>
+    <Card elevation={1} sx={{ borderRadius: 1, overflow: 'hidden', backgroundColor: 'rgba(255, 255, 255, .86)', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <Box sx={{ 
         py: 0.5, 
         px: 1,
@@ -104,7 +104,7 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove, sectionNa
         </Typography>
       </Box>
       
-      <TableContainer sx={{ maxHeight: 'calc(100vh - 174px)' }}>
+      <TableContainer sx={{ flex: 1, minHeight: 0 }}>
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>

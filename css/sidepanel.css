@@ -46,22 +46,29 @@ body {
 .chalk-tray::after { right: 28px; bottom: 3px; width: 46px; height: 10px; border-radius: 2px; background: linear-gradient(180deg, #e0c186 0 34%, #3f3025 38%); box-shadow: 0 1px 2px rgba(0,0,0,.45); }
 
 .light-mode .chalk-tray {
-  background: linear-gradient(180deg, #d4d8d4 0 30%, #aab1ad 34%, #8a918e 100%);
-  box-shadow: 0 2px 4px rgba(43, 62, 56, .28), inset 0 1px rgba(255, 255, 255, .75);
+  height: 20px;
+  border-top: 1px solid rgba(255, 255, 255, .9);
+  background: linear-gradient(180deg, #c3cac7 0 18%, #eef1ee 22% 34%, #aab3ae 38% 65%, #7e8984 100%);
+  box-shadow: 0 -2px 5px rgba(55, 71, 64, .12), inset 0 1px rgba(255, 255, 255, .9), inset 0 -2px 2px rgba(48, 61, 56, .22);
 }
 
 .light-mode .chalk-tray::before {
-  width: 42px;
-  height: 6px;
-  border-radius: 4px;
-  background: #315f91;
-  box-shadow: 48px 0 0 #7d2b4c, 96px 0 0 #216b55;
+  bottom: 7px;
+  width: 41px;
+  height: 5px;
+  border-radius: 4px 2px 2px 4px;
+  background: linear-gradient(90deg, #173f6f 0 12%, #3776ae 14% 86%, #eef3f2 89% 100%);
+  box-shadow: 47px 0 0 #8a3555, 94px 0 0 #287b62, 0 1px 1px rgba(0, 0, 0, .25);
 }
 
 .light-mode .chalk-tray::after {
-  width: 33px;
-  height: 9px;
-  background: linear-gradient(180deg, #f5f6f3 0 70%, #46504e 73%);
+  right: 24px;
+  bottom: 5px;
+  width: 42px;
+  height: 11px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f8f9f6 0 62%, #5c6863 66% 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .28);
 }
 
 .board-fade {
@@ -76,7 +83,9 @@ body {
 }
 
 .light-mode .board-fade {
-  background: linear-gradient(to bottom, rgba(240, 242, 239, 0), #e7eae6 88%);
+  bottom: 20px;
+  height: 38px;
+  background: linear-gradient(to bottom, rgba(240, 242, 239, 0), rgba(233, 237, 232, .92) 78%, #d7ddd8 100%);
 }
 
 /* Header Styles */
