@@ -1,6 +1,6 @@
 {
   "name": "chat-extension-sidepanel",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "React-based sidepanel for CHAT Extension",
   "main": "js/sidepanel/index.js",
   "scripts": {
