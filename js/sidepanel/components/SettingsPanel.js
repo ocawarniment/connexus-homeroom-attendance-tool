@@ -74,10 +74,20 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
       });
   }, []);
 
-  const handleSchoolChange = (school) => {
+  const handleSchoolChange = async (school) => {
     const newSettings = { ...settings, school };
     setSettings(newSettings);
-    onUpdateSettings(newSettings);
+    await onUpdateSettings(newSettings);
+
+    if (newSettings.ledgerTestRoster) {
+      try {
+        const response = await chrome.runtime.sendMessage({ type: 'setLedgerTestStudents', enabled: true });
+        if (!response?.success) throw new Error(response?.error || 'Unable to refresh ledger test students.');
+        onRefreshData?.();
+      } catch (error) {
+        console.warn('Unable to refresh ledger test students for the selected school:', error);
+      }
+    }
   };
 
   const handleCompletionMetricChange = (metric) => {
@@ -182,6 +192,28 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
     const newSettings = { ...settings, [setting]: value };
     setSettings(newSettings);
     onUpdateSettings(newSettings);
+  };
+
+  const handleLedgerTestRosterChange = async (enabled) => {
+    const newSettings = { ...settings, ledgerTestRoster: enabled };
+    setSettings(newSettings);
+    await onUpdateSettings(newSettings);
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'setLedgerTestStudents', enabled });
+      if (!response?.success) throw new Error(response?.error || 'Unable to update ledger test students.');
+      onRefreshData?.();
+    } catch (error) {
+      const restoredSettings = { ...settings, ledgerTestRoster: !enabled };
+      setSettings(restoredSettings);
+      await onUpdateSettings(restoredSettings);
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: '/images/icon.png',
+        title: 'CHAT Extension',
+        message: error.message || 'Unable to update ledger test students.'
+      });
+    }
   };
 
   const updateChatLedger = async () => {
@@ -371,7 +403,26 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
                     }
                     sx={{ my: 0 }}
                   />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={settings.ledgerTestRoster || false}
+                        onChange={(e) => handleLedgerTestRosterChange(e.target.checked)}
+                        size="small"
+                        sx={{ p: 0.25 }}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                        Load CHAT Ledger Test Students
+                      </Typography>
+                    }
+                    sx={{ my: 0 }}
+                  />
                 </FormGroup>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.65rem', lineHeight: 1.25 }}>
+                  Generates one test student for each {settings.school?.toUpperCase() || 'selected'} attendance rule. Uncheck to restore the previous roster.
+                </Typography>
               </CardContent>
             </Card>
           )}

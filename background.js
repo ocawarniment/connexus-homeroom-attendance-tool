@@ -372,10 +372,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         initUserSettings();
     }
 
-    // sections w/o overdue lessons for non hr teachers
-    if (request.type == "getDebugRoster") {
-        setDebugStudents();
-    };
+    // Legacy DEBUG section support and the Developer Settings test-roster toggle.
+    if (request.type === "getDebugRoster") {
+        setLedgerTestStudents(true)
+            .then(() => sendResponse({ success: true }))
+            .catch(error => {
+                console.warn('Unable to load CHAT Ledger test students:', error);
+                sendResponse({ success: false, error: error.message });
+            });
+        return true;
+    }
+
+    if (request.type === 'setLedgerTestStudents') {
+        setLedgerTestStudents(Boolean(request.enabled))
+            .then(() => sendResponse({ success: true }))
+            .catch(error => {
+                console.warn('Unable to update CHAT Ledger test students:', error);
+                sendResponse({ success: false, error: error.message });
+            });
+        return true;
+    }
 
     // sections w/o overdue lessons for non hr teachers
     if (request.type == "getRoster") {
@@ -1153,6 +1169,118 @@ function updateWorkCounts(activitiesLogID) {
 		target: { tabId: activitiesLogID },
 		files: ['js/background/loadWork.js']
 	});
+}
+
+const LEDGER_TEST_ROSTER_BACKUP_KEY = 'chatLedgerTestRosterBackup';
+
+function ledgerTestConditionMatches(condition, value) {
+    switch (condition.operator) {
+        case 'contains': return String(value).includes(String(condition.value));
+        case 'less-than': return value < condition.value;
+        case 'greater-than': return value > condition.value;
+        case 'less-than-or-equal-to': return value <= condition.value;
+        case 'greater-than-or-equal-to': return value >= condition.value;
+        case 'equal-to': return value == condition.value;
+        case 'not-equal-to': return value !== condition.value;
+        case 'within-plus-minus-range': return Math.abs(value) < condition.value;
+        case 'exceeds-plus-minus-range': return Math.abs(value) >= condition.value;
+        default: return false;
+    }
+}
+
+function ledgerTestValue(conditions) {
+    const values = conditions.map(condition => condition.value);
+    const numericValues = values.filter(value => typeof value === 'number');
+    const candidates = [0, -1, 1, -10, 10, -100, 100];
+
+    numericValues.forEach(value => candidates.push(value, value - 1, value + 1, value - 10, value + 10, -value));
+    conditions.filter(condition => condition.operator === 'within-plus-minus-range').forEach(condition => candidates.push(0, condition.value - 1, -(condition.value - 1)));
+    conditions.filter(condition => condition.operator === 'exceeds-plus-minus-range').forEach(condition => candidates.push(condition.value, -condition.value, condition.value + 1, -(condition.value + 1)));
+    values.filter(value => typeof value === 'string').forEach(value => candidates.push(value, `${value} (test)`, `Test ${value}`, 'None', 'Exempt'));
+
+    const matchingValue = candidates.find(candidate => conditions.every(condition => ledgerTestConditionMatches(condition, candidate)));
+    if (matchingValue === undefined) {
+        throw new Error(`No valid test value for ${conditions.map(condition => condition.variable).join(', ')}.`);
+    }
+    return matchingValue;
+}
+
+function createLedgerTestStudents(schoolName, schoolLedger) {
+    const outcomes = Array.isArray(schoolLedger?.attenAlg) ? schoolLedger.attenAlg : [];
+    if (!outcomes.length) throw new Error(`The ${schoolName.toUpperCase()} ledger has no attendance conditions.`);
+
+    const measureDefaults = schoolLedger?.truancyDataView?.measures || {};
+    const metricDefaults = schoolLedger?.truancyDataView?.metrics || {};
+    const displayFields = Array.isArray(chatLedger?.popupDisplay) ? chatLedger.popupDisplay : [];
+
+    return Object.fromEntries(outcomes.map((outcome, index) => {
+        const id = `STLEDGER${String(index + 1).padStart(2, '0')}`;
+        const scenarioName = outcome.conditions
+            .map(condition => `${condition.variable} ${condition.operator} ${condition.value}`)
+            .join(' · ');
+        const student = {
+            id,
+            name: `CHAT Test ${index + 1} — ${outcome.result?.state || 'Scenario'}: ${scenarioName}`,
+            isLedgerTest: true,
+            dataDownloaded: true,
+            complete: false
+        };
+
+        Object.entries(measureDefaults).forEach(([field, config]) => {
+            student[field] = config?.defaultValue ?? (config?.type === 'number' ? 0 : 'N/A');
+        });
+        Object.keys(metricDefaults).forEach(field => { student[field] = 0; });
+        displayFields.forEach(({ field }) => {
+            if (field && !['id', 'name', 'approveButton'].includes(field) && student[field] === undefined) student[field] = 0;
+        });
+
+        const conditionsByVariable = outcome.conditions.reduce((groups, condition) => {
+            (groups[condition.variable] ||= []).push(condition);
+            return groups;
+        }, {});
+        Object.entries(conditionsByVariable).forEach(([field, conditions]) => {
+            student[field] = ledgerTestValue(conditions);
+        });
+
+        return [id, student];
+    }));
+}
+
+async function setLedgerTestStudents(enabled) {
+    const result = await chrome.storage.local.get(['chatLedger', 'userSettings', 'students', 'sectionName', 'currentApproval', LEDGER_TEST_ROSTER_BACKUP_KEY]);
+    const schoolName = result.userSettings?.school;
+
+    if (!enabled) {
+        const backup = result[LEDGER_TEST_ROSTER_BACKUP_KEY];
+        await chrome.storage.local.set({
+            students: backup?.students || {},
+            sectionName: backup?.sectionName || null,
+            currentApproval: backup?.currentApproval || {}
+        });
+        await chrome.storage.local.remove(LEDGER_TEST_ROSTER_BACKUP_KEY);
+        return;
+    }
+
+    const ledger = materializeLedgerAliases(result.chatLedger);
+    const schoolLedger = ledger?.[schoolName];
+    if (!schoolName || !schoolLedger) throw new Error('Select a school with a CHAT Ledger before loading test students.');
+
+    if (!result[LEDGER_TEST_ROSTER_BACKUP_KEY]) {
+        await chrome.storage.local.set({
+            [LEDGER_TEST_ROSTER_BACKUP_KEY]: {
+                students: result.students || {},
+                sectionName: result.sectionName || null,
+                currentApproval: result.currentApproval || {}
+            }
+        });
+    }
+
+    const students = createLedgerTestStudents(schoolName, schoolLedger);
+    await chrome.storage.local.set({
+        students,
+        sectionName: `CHAT Ledger Test Cases — ${schoolName.toUpperCase()}`,
+        currentApproval: { sectionId: 'LEDGER-TEST', startDate: '', endDate: '' }
+    });
 }
 
 function setDebugStudents(){

@@ -64,8 +64,11 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove, sectionNa
   const displayFields = getDisplayFields();
   
   // Helper function to decrypt student names for sorting
-  const decryptName = (encryptedName) => {
+  const decryptName = (encryptedName, student) => {
     try {
+      if (student?.isLedgerTest && typeof encryptedName === 'string') {
+        return encryptedName;
+      }
       if (typeof CryptoJS !== 'undefined' && window.cryptoPass && encryptedName) {
         const decrypted = CryptoJS.AES.decrypt(encryptedName, window.cryptoPass).toString(CryptoJS.enc.Utf8);
         return decrypted || 'Student Name';
@@ -79,8 +82,8 @@ const StudentTable = ({ students, userSettings, chatLedger, onApprove, sectionNa
   
   // Sort student IDs alphabetically by student name (Last, First)
   const studentIds = Object.keys(students).sort((a, b) => {
-    const nameA = decryptName(students[a].name);
-    const nameB = decryptName(students[b].name);
+    const nameA = decryptName(students[a].name, students[a]);
+    const nameB = decryptName(students[b].name, students[b]);
     return nameA.localeCompare(nameB);
   });
 

@@ -35,6 +35,12 @@ const StudentRow = ({ studentId, student, displayFields, userSettings, chatLedge
       if (userSettings?.redactStudentNames) {
         return 'Student Name';
       }
+
+      // Ledger test students are locally generated and intentionally use a
+      // readable scenario name instead of an encrypted Connexus name.
+      if (student.isLedgerTest && typeof encryptedName === 'string') {
+        return encryptedName;
+      }
       
       if (typeof CryptoJS !== 'undefined' && window.cryptoPass && encryptedName) {
         const decrypted = CryptoJS.AES.decrypt(encryptedName, window.cryptoPass).toString(CryptoJS.enc.Utf8);
