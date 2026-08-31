@@ -42,7 +42,7 @@ import {
 const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSettings, onRefreshData }) => {
   const [settings, setSettings] = useState({});
   const [approvalWindow, setApprovalWindow] = useState(2);
-  const [extensionVersion, setExtensionVersion] = useState('4.0.1');
+  const [extensionVersion, setExtensionVersion] = useState('4.0.0');
   const [chatLedgerVersion, setChatLedgerVersion] = useState('Loading...');
   const [developerModeClickCount, setDeveloperModeClickCount] = useState(0);
   const [isDeveloperMode, setIsDeveloperMode] = useState(false);
@@ -66,7 +66,7 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
     fetch('./manifest.json')
       .then(response => response.json())
       .then(manifest => {
-        setExtensionVersion(manifest.version || '4.0.1');
+        setExtensionVersion(manifest.version || '4.0.0');
       })
       .catch(error => {
         console.error('Error loading manifest:', error);
