@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Developer Mode guide for CHAT administrators.">
+  <title>CHAT Developer Mode</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="page-header"><a href="index.html">← CHAT Reference Manual</a></header>
+  <header class="developer-hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Admin guide</p>
+      <h1>Developer Mode</h1>
+      <p class="lede">A few extra tools for safely checking CHAT’s attendance guidance. Tread lightly: these controls are intended for administrators and testers.</p>
+    </div>
+  </header>
+
+  <main id="content" class="developer-layout">
+    <section>
+      <p class="section-label">Getting started</p>
+      <h2>Turn on Developer Mode</h2>
+      <ol>
+        <li>Open the CHAT side panel and select <strong>Settings</strong>.</li>
+        <li>Click the small <strong>Info</strong> icon beside <strong>About</strong> ten times.</li>
+        <li>A <strong>Developer Settings</strong> card will appear.</li>
+      </ol>
+      <div class="callout"><strong>Use a test section when possible:</strong> Developer Mode is for validating behavior, not for regular attendance work.</div>
+    </section>
+
+    <section>
+      <p class="section-label">Ledger testing</p>
+      <h2>Test attendance guidance</h2>
+      <p>Select the school you want to review, then turn on <strong>Load CHAT Ledger Test Students</strong> in Developer Settings.</p>
+      <ul>
+        <li>CHAT creates one clearly labeled test student for every attendance scenario configured for that school.</li>
+        <li>The test-student name describes the rule being checked, while the action button shows the expected guidance.</li>
+        <li>Switch schools while the setting is on to generate that school’s set of scenarios.</li>
+        <li>Turn the setting off to restore the roster that was visible before testing.</li>
+      </ul>
+      <div class="callout"><strong>Important:</strong> Test students are not real Connexus students. Do not select their attendance action buttons or use them to create logs or messages.</div>
+    </section>
+
+    <section>
+      <p class="section-label">Other tools</p>
+      <h2>Additional developer settings</h2>
+      <dl class="settings-list">
+        <div><dt>Download all students</dt><dd>Includes students regardless of their current Connexus stage, so you can inspect how CHAT handles a fuller roster.</dd></div>
+        <div><dt>Redact student names</dt><dd>Replaces displayed names with a generic label when sharing screenshots or demonstrating CHAT.</dd></div>
+        <div><dt>Randomize overdue counts</dt><dd>Varies overdue-lesson values to help review table display and attendance guidance.</dd></div>
+      </dl>
+    </section>
+
+    <section>
+      <p class="section-label">When you are done</p>
+      <h2>Return to regular use</h2>
+      <p>Turn off <strong>Load CHAT Ledger Test Students</strong> first, then close Settings. Developer Mode remains available on that browser profile, but its test controls do nothing unless you turn them on again.</p>
+    </section>
+  </main>
+
+  <footer>CHAT — Connexus Homeroom Attendance Tool<br><a class="developer-link" href="index.html">Return to the Reference Manual</a></footer>
+</body>
+</html>

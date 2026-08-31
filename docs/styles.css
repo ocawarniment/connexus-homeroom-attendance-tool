@@ -55,4 +55,16 @@ details { padding: .9rem 1rem; border: 1px solid var(--line); background: rgba(2
 summary { cursor: pointer; font-weight: 750; } details p { margin: .75rem 0 0; color: var(--muted); }
 code { padding: .1rem .28rem; border-radius: 3px; background: #f1e9ee; font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; }
 footer { padding: 2rem; color: #d5bbcE; background: #2b0d26; text-align: center; font-size: .9rem; }
+.developer-link { display: inline-block; margin-top: .45rem; color: #cdaac4; font-size: .78rem; font-weight: 500; text-decoration: none; opacity: .85; }
+.developer-link:hover { color: white; opacity: 1; text-decoration: underline; }
+.page-header { padding: 1.1rem 2rem; color: white; background: var(--deep); }
+.page-header a { color: #f4eaf1; text-decoration: none; }
+.page-header a:hover { text-decoration: underline; }
+.developer-hero { color: white; background: linear-gradient(120deg, #2b0d26, var(--deep) 62%, #521948); }
+.developer-hero .hero-inner { padding-top: 3.6rem; padding-bottom: 3.4rem; }
+.developer-hero h1 { max-width: 780px; font-size: clamp(2.25rem, 5vw, 4rem); }
+.developer-hero .eyebrow { color: #e2c7da; }
+.developer-layout { max-width: 830px; margin: auto; padding: 3rem 2rem 5rem; }
+.developer-layout section:first-child { padding-top: 0; }
+@media (max-width: 780px) { .page-header { padding: 1rem 1.15rem; } .developer-layout { padding: 2rem 1.15rem 4rem; } }
 @media (max-width: 780px) { .layout { display: block; padding: 2rem 1.15rem 4rem; } .sidebar { position: static; grid-template-columns: repeat(2, 1fr); margin-bottom: 2rem; } .hero-inner { padding: 3.5rem 1.15rem; } .hero-preview { right: -6rem; bottom: -24rem; width: 480px; opacity: .29; } .two, .three, .video-grid { grid-template-columns: 1fr; } .settings-list div { grid-template-columns: 1fr; gap: .2rem; } }
