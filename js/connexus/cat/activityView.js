@@ -114,6 +114,10 @@ function checkAutomation(){
 				chrome.runtime.sendMessage({type: 'scrapeValue', url: `https://www.connexus.com/dataview/${dataViewId}?idWebuser=` + studentID, cssSelector: `${elemId}`, hidden: true}, async (response)=>{
 					if (response === null) {
 						updateActivityDataStatus('course', 'error', 'Unable to overwrite Course Activity with specific course name.');
+						chrome.runtime.sendMessage({
+							type: 'cteccpUnavailable',
+							reason: 'CHAT could not retrieve the CTE/CCP hours needed for an automatic check. Review the student’s hours manually before approving attendance.'
+						});
 						return;
 					}
 					console.log(response);

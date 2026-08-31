@@ -118,7 +118,9 @@ async function getEmbeddedFrameId(tabId, parentUrl) {
 
 async function restoreCteCcpManualReview(workerTabId, reason) {
     const worker = findActivityWorkerByTab(workerTabId);
-    const sourceTabId = worker?.sourceTabId;
+    // This may be sent from the hidden Activity Tracker worker or directly
+    // from the original activity page when its CTE/CCP-hours lookup fails.
+    const sourceTabId = worker?.sourceTabId || workerTabId;
     if (!sourceTabId) return;
 
     await safeExecuteScript({
