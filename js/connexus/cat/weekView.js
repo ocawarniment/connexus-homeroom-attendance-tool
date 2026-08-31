@@ -22,9 +22,13 @@ if(auto == 'saveandreload') {
 if(auto == 'check') {
     const pageText = document.body?.innerText || '';
     if (/an error occurred while loading this page|missing some information needed to load/i.test(pageText)) {
+        const expectedHours = Number(time);
+        const hoursText = Number.isFinite(expectedHours)
+            ? ` This student is expected to have ${expectedHours} ${course.toUpperCase()} hour(s) per school day.`
+            : '';
         chrome.runtime.sendMessage({
             type: 'cteccpUnavailable',
-            reason: 'CHAT could not verify CTE/CCP hours because Connexus Activity Tracker is temporarily unavailable. Review the student’s hours manually before approving attendance.'
+            reason: `CHAT could not verify ${course.toUpperCase()} hours because Connexus Activity Tracker is temporarily unavailable. Review the student’s hours manually before approving attendance.${hoursText}`
         });
     } else {
         console.log('sending message to back to check');

@@ -5,6 +5,7 @@ function bgConsole(sendCommand) {
 }
 // chrome local
 var storage = chrome.storage.local;
+let activityDataStatusRemovalTimer = null;
 
 function createActivityDataStatus() {
 	if (document.getElementById('chatDataStatus')) return;
@@ -42,6 +43,19 @@ function updateActivityDataStatus(step, status, message) {
 		icon.setAttribute('aria-label', 'Download in progress');
 	}
 	if (message) row.querySelector('.chat-data-label').innerHTML = `<strong>Step ${step === 'work' ? '1' : '2'}</strong> · ${message}`;
+
+	const panel = document.getElementById('chatDataStatus');
+	if (!panel) return;
+	const states = [...panel.querySelectorAll('.chat-data-step')].map(item => item.dataset.state);
+	const isFinished = states.length > 0 && states.every(state => state === 'complete' || state === 'error');
+	if (activityDataStatusRemovalTimer) clearTimeout(activityDataStatusRemovalTimer);
+	if (isFinished) {
+		activityDataStatusRemovalTimer = setTimeout(() => {
+			panel.style.transition = 'opacity .35s ease';
+			panel.style.opacity = '0';
+			setTimeout(() => panel.remove(), 350);
+		}, 4000);
+	}
 }
 
 chrome.runtime.onMessage.addListener((request) => {
@@ -114,9 +128,15 @@ function checkAutomation(){
 				chrome.runtime.sendMessage({type: 'scrapeValue', url: `https://www.connexus.com/dataview/${dataViewId}?idWebuser=` + studentID, cssSelector: `${elemId}`, hidden: true}, async (response)=>{
 					if (response === null) {
 						updateActivityDataStatus('course', 'error', 'Unable to overwrite Course Activity with specific course name.');
-						chrome.runtime.sendMessage({
-							type: 'cteccpUnavailable',
-							reason: 'CHAT could not retrieve the CTE/CCP hours needed for an automatic check. Review the student’s hours manually before approving attendance.'
+						chrome.storage.local.get('students', ({ students = {} }) => {
+							const requiredHours = students[`ST${studentID}`]?.[`${course}Hours`];
+							const hoursText = requiredHours !== undefined && requiredHours !== null && requiredHours !== ''
+								? ` This student is expected to have ${requiredHours} ${course.toUpperCase()} hour(s) per school day.`
+								: '';
+							chrome.runtime.sendMessage({
+								type: 'cteccpUnavailable',
+								reason: `CHAT could not retrieve the ${course.toUpperCase()} hours needed for an automatic check. Review the student’s hours manually before approving attendance.${hoursText}`
+							});
 						});
 						return;
 					}
