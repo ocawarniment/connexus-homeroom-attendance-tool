@@ -7,54 +7,36 @@ function bgConsole(sendCommand) {
 /////// CryptoJS INIT ///////
 var cryptoPass = "oca2018";
 
-// reset the date mode
-storage.set({ 'manualDateMode': "FALSE" });
-
-// allow for backup plan?
-//var BACKUP_PLAN = true;
-
-// temporarily wait until the page has loaded completely
-//getStudents();
-console.log('starting');
-
 (async () => {
+	try {
+		const studentData = await getStudentsAPI();
+		if (!Array.isArray(studentData.students) || studentData.students.length === 0) {
+			throw new Error('No overdue lesson data was returned. Confirm that you are the homeroom teacher for this section.');
+		}
 
-	let studentData = await getStudentsAPI();
+		const { students: homeroomArray = {} } = await storage.get('students');
+		let updatedCount = 0;
+		studentData.students.forEach(student => {
+			const studentKey = `ST${student.idWebuser}`;
+			// The API includes inactive students, while the roster intentionally does
+			// not. Ignore entries that were not part of this download.
+			if (!homeroomArray[studentKey]) return;
+			const overdueLessons = student.totalOverdueLessons ?? 0;
+			homeroomArray[studentKey].overdueLessons = overdueLessons;
+			homeroomArray[studentKey].lessonCompMetric = overdueLessons;
+			updatedCount += 1;
+		});
 
-	// Randomize the numbers
-	// Select all elements with the specified attribute
-	const elements = document.querySelectorAll('[count="::student.totalOverdueLessons"]');
+		if (!updatedCount) {
+			throw new Error('The homeroom overdue data did not match any students in this section.');
+		}
 
-	// Iterate over each element and set its content to a random number
-	elements.forEach(element => {
-		const randomNumber = Math.floor(Math.random() * 100) + 1;
-		element.textContent = randomNumber;
-	});
-
-
-	if (studentData.students.length > 0) {
-		// write to chrome storage
-		storage.get(null, result => {
-			let homeroomArray = result.students;
-			// loop the studentData
-			studentData.students.forEach(student => {
-				// set OD lessons
-				homeroomArray[`ST${student.idWebuser}`]['overdueLessons'] = student.totalOverdueLessons || 0;
-				// overwrite lessonsBehind as lessonCompMetric
-				homeroomArray[`ST${student.idWebuser}`]['lessonCompMetric'] = student.totalOverdueLessons || 0;
-			})
-
-			// put back to storage
-			storage.set({ 'students': homeroomArray });
-			console.log('overdue lessons storred via API');
-			window.alert('Section download complete!');
-			window.close();
-		})
-	} else {
-		window.alert('It appears you are not the homeroom teacher on this section and cannot access Overdue Lessons. \n\nLessons Behind will be used as the primary Lesson Completion Measure. This message will continue to popup until this setting is changed on the CHAT Settings page.')
-		window.close()
+		await storage.set({ students: homeroomArray });
+		chrome.runtime.sendMessage({ type: 'overdueScrapeComplete', count: updatedCount });
+	} catch (error) {
+		console.error('Unable to download overdue lesson counts:', error);
+		chrome.runtime.sendMessage({ type: 'overdueScrapeError', message: error.message || 'Unable to download overdue lesson counts.' });
 	}
-
 })();
 
 // tap into the azure API call with cookies storred on the users machine
@@ -63,23 +45,17 @@ async function getStudentsAPI() {
 	const regex = /(?<=mystudents\/)\d*/gm;
 	let sectionId = window.location.href.match(regex)[0];
 
-	// get the cookies
-	let cookiesArray = document.cookie.split("; ")
-	let cookies = {};
-	cookiesArray.forEach(cookie => {
-		let keyValue = cookie.split("=");
-		cookies[keyValue[0]] = keyValue[1]
-	})
-
 	// set the url
+	const cookies = Object.fromEntries(document.cookie.split('; ').filter(Boolean).map(cookie => cookie.split('=')));
+	if (!cookies.idWebuserEncrypted) throw new Error('Connexus user session was unavailable.');
 	let reqUrl = `https://www.connexus.com/api/section/students?idWebuser=${cookies.idWebuserEncrypted}&idSection=${sectionId}&includeInactive=true`;
-	let headers = { "Cookie": document.cookie }
 
 	// send request
 	const response = await fetch(reqUrl, {
 		method: "GET",
-		headers: headers
+		credentials: 'same-origin'
 	});
+	if (!response.ok) throw new Error(`Connexus overdue lesson request failed (${response.status}).`);
 
 	const responseData = await response.json();
 

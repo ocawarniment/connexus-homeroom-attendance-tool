@@ -452,6 +452,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         completeCurrentStudent(request).catch(error => finishSectionDownload('error', error.message));
     }
 
+    if (request.type === 'overdueScrapeComplete' && activeSectionDownload) {
+        completeOverdueDownload(request).catch(error => finishSectionDownload('error', error.message));
+    }
+
+    if (request.type === 'overdueScrapeError' && activeSectionDownload) {
+        finishSectionDownload('error', request.message || 'Unable to download overdue lesson counts.');
+    }
+
     if (request.type === 'sectionDownloadError' && activeSectionDownload) {
         finishSectionDownload('error', request.message || 'The section could not be downloaded.');
     }
@@ -987,6 +995,11 @@ async function startSectionDownload(sectionId, preferredWindowId) {
         message: 'Opening the secure download workspace…'
     });
 
+    // Overdue counts are available only to OCA homeroom teachers. Snapshot the
+    // setting so an in-progress download has one consistent data contract.
+    const { userSettings = {} } = await chrome.storage.local.get('userSettings');
+    const downloadOverdue = userSettings.school === 'oca' && userSettings.completionMetric === 'overdue';
+
     let workerTab;
     let windowId = preferredWindowId;
     try {
@@ -1017,6 +1030,8 @@ async function startSectionDownload(sectionId, preferredWindowId) {
         windowId,
         tabId: workerTab.id,
         groupId,
+        sectionId,
+        downloadOverdue,
         studentIds: [],
         currentIndex: 0
     };
@@ -1059,7 +1074,7 @@ async function loadNextStudent() {
     if (!activeSectionDownload) return;
     const { studentIds, currentIndex, tabId } = activeSectionDownload;
     if (currentIndex >= studentIds.length) {
-        await finishSectionDownload('complete', 'Section download complete.');
+        await startOverdueDownload();
         return;
     }
 
@@ -1082,6 +1097,46 @@ async function loadNextStudent() {
     await chrome.scripting.executeScript({
         target: { tabId },
         files: ['/js/connexus/dataview/getTruancy.js']
+    });
+}
+
+async function startOverdueDownload() {
+    if (!activeSectionDownload) return;
+    if (!activeSectionDownload.downloadOverdue) {
+        await finishSectionDownload('complete', 'Section download complete.');
+        return;
+    }
+
+    const { tabId, sectionId } = activeSectionDownload;
+    if (!sectionId) throw new Error('The homeroom section ID is unavailable for the overdue lesson download.');
+
+    await updateDownloadProgress({
+        status: 'overdue',
+        completed: activeSectionDownload.studentIds.length,
+        total: activeSectionDownload.studentIds.length,
+        message: 'Downloading overdue lesson counts…'
+    });
+
+    activeSectionDownload.loadAbortController?.abort();
+    const loadAbortController = new AbortController();
+    activeSectionDownload.loadAbortController = loadAbortController;
+    const pageLoaded = waitForTabComplete(tabId, 30000, loadAbortController.signal);
+    await chrome.tabs.update(tabId, {
+        url: `https://www.connexus.com/sectionsandstudents#/mystudents/${encodeURIComponent(sectionId)}`,
+        active: false
+    });
+    await pageLoaded;
+
+    clearTimeout(activeSectionDownload.overdueTimeout);
+    activeSectionDownload.overdueTimeout = setTimeout(() => {
+        if (activeSectionDownload?.tabId === tabId) {
+            finishSectionDownload('error', 'Overdue lesson counts did not respond in time. Confirm that you are the homeroom teacher, then retry the download.');
+        }
+    }, 45000);
+
+    await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['/js/connexus/myStudents/getOverdue.js']
     });
 }
 
@@ -1144,10 +1199,18 @@ async function completeCurrentStudent(request) {
     await loadNextStudent();
 }
 
+async function completeOverdueDownload(request) {
+    if (!activeSectionDownload) return;
+    clearTimeout(activeSectionDownload.overdueTimeout);
+    const count = Number(request.count) || 0;
+    await finishSectionDownload('complete', `Section download complete. Downloaded overdue lesson counts for ${count} student${count === 1 ? '' : 's'}.`);
+}
+
 async function finishSectionDownload(status, message) {
     const download = activeSectionDownload;
     activeSectionDownload = null;
     clearTimeout(download?.studentTimeout);
+    clearTimeout(download?.overdueTimeout);
     download?.loadAbortController?.abort();
     await persistSectionDownloadWorker();
     if (download?.tabId) {

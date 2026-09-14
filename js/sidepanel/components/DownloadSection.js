@@ -38,7 +38,7 @@ const DownloadSection = ({ currentApproval, userSettings, downloadProgress, onDo
   }, [currentApproval]);
 
   useEffect(() => {
-    setIsDownloading(['preparing', 'roster', 'downloading'].includes(downloadProgress?.status));
+    setIsDownloading(['preparing', 'roster', 'downloading', 'overdue'].includes(downloadProgress?.status));
   }, [downloadProgress?.status]);
 
   const calculateAutoDateRange = (windowWeeks) => {
@@ -179,7 +179,7 @@ const DownloadSection = ({ currentApproval, userSettings, downloadProgress, onDo
   };
 
   const windowWeeks = userSettings?.approvalWindowWeeks || 2;
-  const progressActive = ['preparing', 'roster', 'downloading'].includes(downloadProgress?.status);
+  const progressActive = ['preparing', 'roster', 'downloading', 'overdue'].includes(downloadProgress?.status);
   const canRetry = ['error', 'cancelled'].includes(downloadProgress?.status);
   const progressValue = downloadProgress?.total
     ? Math.round((downloadProgress.completed / downloadProgress.total) * 100)
