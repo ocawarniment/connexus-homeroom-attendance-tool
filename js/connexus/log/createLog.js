@@ -18,13 +18,32 @@ function showPicker(pickerType) {
 	document.getElementById(pickerType + '_innerBottomContent').style.display = "";
 }
 
-// modified addMultiPickItem function for section
-function addSection(id) {
-	let sections = window.section_Array;
+function findSelectWithOption(optionText) {
+	return Array.from(document.querySelectorAll('select')).find(select =>
+		Array.from(select.options).some(option => option.textContent.trim().toLowerCase().includes(optionText.toLowerCase()))
+	);
+}
 
-	document.getElementById('section_linkSpan_' + id).style.display = "none";
-	document.getElementById('section_chosenLinkSpan_' + id).style.display = "";
-	sections.push(id);
+function selectOptionContaining(select, optionText) {
+	if (!select) throw new Error(`The ${optionText} selector is not available on this log form.`);
+	let option = Array.from(select.options).find(item => item.textContent.trim().toLowerCase().includes(optionText.toLowerCase()));
+	if (!option) throw new Error(`The ${optionText} option is not available on this log form.`);
+	select.value = option.value;
+	select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function setTreeCheckbox(item, checked) {
+	if (!item) throw new Error('An expected attendance category is not available on this log form.');
+	let checkbox = item.querySelector('.rtChecked, .rtUnchecked, .rtIndeterminate');
+	if (!checkbox) throw new Error('An expected attendance category checkbox is not available on this log form.');
+	let isChecked = checkbox.classList.contains('rtChecked');
+	if (isChecked !== checked) checkbox.click();
+}
+
+function directTreeLabel(item) {
+	let row = item?.firstElementChild;
+	let label = row ? Array.from(row.children).find(child => child.classList.contains('rtIn')) : null;
+	return label?.childNodes[0]?.textContent.trim() || '';
 }
 
 // message to background console
@@ -45,26 +64,24 @@ const params = urlObj.searchParams;
 const sectionId = params.get('sectionId');
 const adjStr = params.get('adjStr').replaceAll(' ','+');
 const appWindow = params.get('appWindow').replace('-',' - ');
+const isEmptyLogTest = params.get('emptyLogTest') === 'true';
 // work counts
 const workMatch = params.get('workNumbers').match(/L(\d+)\|A(\d+)/);
 const lessonCount = parseInt(workMatch[1]);
 const assessmentCount = parseInt(workMatch[2]);
 
 //storage.get(null, function(result) {
-	// try to click the correct section
-	let currentSystem = document.querySelector('#system_systemDropDownList > option[selected="selected"]').innerText;
-
 	console.log('HERE')
 
-	// assume system is not Student - set it and wait for loading to disappear
-	// Select the dropdown element
+	// The student log form normally opens with Student already selected. Only
+	// trigger Connexus's postback when another system is actually selected.
 	const systemDropdown = document.querySelector('select[name="system$systemDropDownList"]');
-		
-	// Set the dropdown to "System" option
-	systemDropdown.value = '1'; // This will select the "Choose One" option
-
-	// Trigger the change event to simulate user interaction
-	systemDropdown.dispatchEvent(new Event('change'));
+	if (!systemDropdown) throw new Error('The System selector is not available on this log form.');
+	const changeToStudent = systemDropdown.value !== '1';
+	if (changeToStudent) {
+		systemDropdown.value = '1';
+		systemDropdown.dispatchEvent(new Event('change', { bubbles: true }));
+	}
 
 	// Create a function to wait for an element to become visible
 	function waitForElementVisibility(selector, shouldBeVisible) {
@@ -111,49 +128,12 @@ const assessmentCount = parseInt(workMatch[2]);
 
 	// Wait for the loading block to become visible, then invisible
 	(async () => {
-		console.log('waiting');
-		await waitForElementVisibility('#home > div.cxLoading.cxLoadingOverlay.cxLoadingVisible > div', true);
-		await waitForElementVisibility('#home > div.cxLoading.cxLoadingOverlay.cxLoadingVisible > div', false);
-		//await waitForElementVisibility('div.blockUI.blockMsg.blockPage img', true);
-		//await waitForElementVisibility('div.blockUI.blockMsg.blockPage img', false);
-		console.log('finished');
-
-		// click comment observation
-		var catBox = document.getElementById("idLogEntryContactType_ctl00");
-		catBox.selectedIndex = 1; //hard coded to get the 1 index which is comment
-		var contacteesPanel = document.getElementById('contacteesPanel');
-		contacteesPanel.setAttribute('style', 'display:none');
-		
-		var attenBox = document.getElementById("areaCategoryChooser_pickList_pickListContaner").getElementsByClassName("rtLI")[66].getElementsByTagName("span")[1]; //[1].getElementsByClassName("rtUnchecked")[1];
-		
-		var drop=document.getElementById("areaCategoryChooser_pickList_ToggleIcon"); 
-		var allCats = document.getElementById("areaCategoryChooser_pickList_tree").getElementsByClassName("rtLI");
-		
-		// get the items we need
-		var adminDrop = getCat("Administrative").getElementsByClassName("rtPlus")[0];
-		var adminBox = getItem("Administrative","Administrative").getElementsByClassName("rtUnchecked")[0];
-		var attenBox = getItem("Administrative","Attendance").getElementsByClassName("rtUnchecked")[0];
-
-		// clear cats
-		i=0;
-		while (i<allCats.length) {
-			if(allCats[i].getElementsByTagName("span")[1].getAttribute("class") == "rtChecked") {
-				allCats[i].getElementsByTagName("span")[1].click();
-			}
-			i++;
+		if (changeToStudent) {
+			console.log('waiting');
+			await waitForElementVisibility('#home > div.cxLoading.cxLoadingOverlay.cxLoadingVisible > div', true);
+			await waitForElementVisibility('#home > div.cxLoading.cxLoadingOverlay.cxLoadingVisible > div', false);
+			console.log('finished');
 		}
-
-		// click boxes
-		drop.click(); 
-		adminDrop.click(); 
-		window.setTimeout(function(){
-			adminBox.click(); 
-			attenBox.click();
-			drop.click(); 
-		}, 250); 
-		
-
-		//var changesText = adjStr;
 
 		let changesArray = adjStr.split(';').filter(Boolean).map(entry => {
 			// Regex to extract MMDDYY, sign, hours, and minutes
@@ -182,63 +162,69 @@ const assessmentCount = parseInt(workMatch[2]);
 		console.log(changesArray);
 
 		let changesString = changesArray.join('\n');
+		let comment = document.querySelector('#comment');
+		if (!comment) throw new Error('The comment field is not available on this log form.');
 
 		if (changesArray.length > 0) {
-			document.querySelector('#comment').innerHTML = "Attendance Adjustments \n" + appWindow + "\n\n" + 'Lessons: ' + lessonCount + "\n" + 'Assessments: ' + assessmentCount + "\n\n" + changesString;
+			comment.value = "Attendance Adjustments \n" + appWindow + "\n\n" + 'Lessons: ' + lessonCount + "\n" + 'Assessments: ' + assessmentCount + "\n\n" + changesString;
+		} else if (isEmptyLogTest) {
+			comment.value = "Attendance Adjustments \n" + appWindow + "\n\n" + 'Lessons: ' + lessonCount + "\n" + 'Assessments: ' + assessmentCount + "\n\nDeveloper test: no attendance adjustments were found.";
 		} else {
 			alert("No changes!");
 		}
+		comment.dispatchEvent(new Event('input', { bubbles: true }));
+		comment.dispatchEvent(new Event('change', { bubbles: true }));
+
+		// Select Comment by its visible option text instead of relying on a
+		// Connexus-generated control ID or option index.
+		let contactType = document.getElementById("idLogEntryContactType_contactType") || findSelectWithOption('Comment / Observation');
+		selectOptionContaining(contactType, 'Comment');
+		let contacteesPanel = document.getElementById('contacteesPanel');
+		if (contacteesPanel) contacteesPanel.style.display = 'none';
+
+		let categoryTree = document.getElementById("areaCategoryChooser_pickList_tree");
+		let categoryToggle = document.getElementById("areaCategoryChooser_pickList_ToggleIcon");
+		if (!categoryTree || !categoryToggle) throw new Error('The Areas and Categories picker is not available on this log form.');
+
+		// Clear prior selections, then choose categories by name. The previous
+		// implementation assumed Attendance was always item 67 in the tree.
+		Array.from(categoryTree.getElementsByClassName("rtLI")).forEach(item => {
+			let checkbox = item.querySelector('.rtChecked');
+			if (checkbox) checkbox.click();
+		});
+		categoryToggle.click();
+		let administrativeCategory = getCat("Administrative");
+		let adminExpand = administrativeCategory?.querySelector('.rtPlus');
+		if (adminExpand) adminExpand.click();
+		await new Promise(resolve => window.setTimeout(resolve, 250));
+		setTreeCheckbox(getItem("Administrative", "Administrative"), true);
+		setTreeCheckbox(getItem("Administrative", "Attendance"), true);
+		categoryToggle.click();
 
 		// add the homeroom section last in case this is not a hr teacher
-		showPicker('section');
-		console.log('clicked!');
-		addSection(sectionId);
+		let sectionAddLink = document.getElementById('section_linkSpan_' + sectionId)?.querySelector('a');
+		if (!sectionAddLink) throw new Error(`Section ${sectionId} is not available on this log form.`);
+		sectionAddLink.click();
 
 		console.log('DONE');
-	})();
+	})().catch(error => {
+		console.error('CHAT Create Log automation failed:', error);
+		alert(`CHAT could not finish preparing this log entry: ${error.message}`);
+	});
 
 //});
 
 // function to get cat open item
 function getCat(category){
-	// get the category index
-	var allCategories = document.getElementById("areaCategoryChooser_pickList_tree").getElementsByClassName("rtUL")[0].children;
-	var foundCat;
-	
-	for(i=0; i<allCategories.length; i++){
-		var catString = allCategories[i].innerText;
-		if(catString.includes(category)) {
-			foundCat = allCategories[i];
-		}
-	}
-
-	return foundCat;
+	var rootList = document.querySelector('#areaCategoryChooser_pickList_tree > ul.rtUL');
+	return Array.from(rootList?.children || []).find(item => directTreeLabel(item) === category);
 }
 
 // function to find the right toggle box
 function getItem(category, item){
-	// get the category index
-	var allCategories = document.getElementById("areaCategoryChooser_pickList_tree").getElementsByClassName("rtUL")[0].children;
-	var foundCat;
-	
-	for(i=0; i<allCategories.length; i++){
-		var catString = allCategories[i].innerText;
-		if(catString.includes(category)) {
-			foundCat = allCategories[i];
-		}
-	}
+	var categoryNode = getCat(category);
+	var childList = categoryNode?.querySelector(':scope > ul.rtUL');
+	return Array.from(childList?.children || []).find(child => directTreeLabel(child) === item);
 
-	var allItems = foundCat.getElementsByClassName("rtLI");
-	var foundItem;
-	// find the correct item within the found category
-	for(i=0; i<allItems.length; i++){
-		var itemString = allItems[i].innerText;
-		if(itemString.includes(item)){
-			foundItem = allItems[i];
-		}
-	}
-
-	return foundItem;
-
-}	
+}
 	

@@ -207,7 +207,7 @@ function createHeader() {
 	body.insertBefore(buttonBar, body.firstChild);
 }
 
-function createLog() {
+async function createLog() {
     // check if not approved
     if(document.getElementById("btnUnapprove") != null) {
         var name = document.getElementById('pageTitleHeaderTextSpan').innerText;
@@ -218,18 +218,39 @@ function createLog() {
         var studentID = url.match(/.idWebuser=\d*/)[0].substring(url.match(/.idWebuser=\d*/)[0].indexOf("=")+1);
         // get adjustments
         var adjustments = getTimeAdjustments();
-        storage.set({'timeAdjustments': adjustments});
         // get dates
         var startDate = document.getElementById("startDate").value;
         var endDate = document.getElementById("endDate").value;
         // get lesson counts
         var lessons = document.getElementById("lessonSubheader").innerText;
         var assessments = document.getElementById("assessmentSubheader").innerText;
-        storage.set({'studentLessons': lessons});
-        storage.set({'studentAssessments': assessments});
-
-        storage.set({'studentID': studentID});
-        chrome.runtime.sendMessage({type: 'createLog', studentID: studentID});
+        // Store the snapshot atomically, then send the same data with the request.
+        // Sending immediately after several independent storage writes could cause
+        // the service worker to read an incomplete or stale log snapshot.
+        try {
+            await storage.set({
+                timeAdjustments: adjustments,
+                globalStartDate: startDate,
+                globalEndDate: endDate,
+                studentLessons: lessons,
+                studentAssessments: assessments,
+                studentID: studentID
+            });
+            var response = await chrome.runtime.sendMessage({
+                type: 'createLog',
+                studentID: studentID,
+                startDate: startDate,
+                endDate: endDate,
+                lessons: lessons,
+                assessments: assessments,
+                adjustments: adjustments
+            });
+            if (response && response.success === false) {
+                throw new Error(response.error);
+            }
+        } catch (error) {
+            alert(error.message || "CHAT could not create the log entry. Please try again.");
+        }
         
         return false;
     } else {

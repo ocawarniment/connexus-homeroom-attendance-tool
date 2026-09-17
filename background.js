@@ -625,38 +625,80 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // automate comms and documentation
     if (request.type == "createLog") {
-        chrome.storage.local.get(null, function(result){
-            // convert the adjustments to less characters
-            let adjString = result.timeAdjustments.map(entry => {
-                // Regex to extract date, sign, hours, and minutes
-                let match = entry.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}).*?([+-])(\d+).*?(\d+)/);
+        (async () => {
+            try {
+                const result = await chrome.storage.local.get([
+                    'timeAdjustments',
+                    'globalStartDate',
+                    'globalEndDate',
+                    'studentLessons',
+                    'studentAssessments',
+                    'currentApproval',
+                    'userSettings'
+                ]);
+                const adjustments = Array.isArray(request.adjustments)
+                    ? request.adjustments
+                    : (Array.isArray(result.timeAdjustments) ? result.timeAdjustments : []);
+
+                // Convert the adjustments to a compact URL-safe representation.
+                const adjString = adjustments.map(entry => {
+                    // Regex to extract date, sign, hours, and minutes
+                    let match = entry.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}).*?([+-])(\d+).*?(\d+)/);
                 
-                if (match) {
-                    let month = match[1].padStart(2, '0');
-                    let day = match[2].padStart(2, '0');
-                    let year = match[3].slice(-2);
-                    let sign = match[4];
-                    let hours = match[5].padStart(2, '0');
-                    let minutes = match[6].padStart(2, '0');
+                    if (match) {
+                        let month = match[1].padStart(2, '0');
+                        let day = match[2].padStart(2, '0');
+                        let year = match[3].slice(-2);
+                        let sign = match[4];
+                        let hours = match[5].padStart(2, '0');
+                        let minutes = match[6].padStart(2, '0');
                 
-                    return `${month}${day}${year}${sign}${hours}h${minutes}m`;
+                        return `${month}${day}${year}${sign}${hours}h${minutes}m`;
+                    }
+                    return null;
+                }).filter(Boolean).join(';');
+
+                const startDate = request.startDate || result.globalStartDate || result.currentApproval?.startDate;
+                const endDate = request.endDate || result.globalEndDate || result.currentApproval?.endDate;
+                const lessonMatch = String(request.lessons || result.studentLessons || '').match(/\d+/);
+                const assessmentMatch = String(request.assessments || result.studentAssessments || '').match(/\d+/);
+                const sectionId = result.currentApproval?.sectionId;
+                const isEmptyLogTest = !adjString
+                    && result.userSettings?.developerMode === true
+                    && result.userSettings?.allowEmptyLogTest === true;
+
+                if (!request.studentID || !startDate || !endDate || !lessonMatch || !assessmentMatch || !sectionId) {
+                    throw new Error('The attendance details needed for the log entry are incomplete. Refresh the attendance page and try again.');
                 }
-            }).join(';');
-            adjString += ';';
+                if (!adjString && !isEmptyLogTest) {
+                    throw new Error('No attendance adjustments were found. Enable “Allow Create Log Test With No Adjustments” in Developer Settings to test this flow.');
+                }
 
-            // get the approval window details - comment.innerHTML = "Attendance Adjustments \n" + result.globalStartDate + " - " + result.globalEndDate + "\n\n" + result.studentLessons + "\n" + result.studentAssessments + "\n\n" + changesText;
-            let appWindow = `${result.globalStartDate}-${result.globalEndDate}`;
-            let workNumbers = `L${result.studentLessons.match(/\d+/)[0]}|A${result.studentAssessments.match(/\d+/)[0]}`
+                const logUrl = new URL('https://www.connexus.com/log/logEntry.aspx');
+                logUrl.search = new URLSearchParams({
+                    idWebuser: request.studentID,
+                    sendto: `/log/default.aspx?idWebuser=${request.studentID}`,
+                    sectionId,
+                    adjStr: adjString ? `${adjString};` : '',
+                    appWindow: `${startDate}-${endDate}`,
+                    workNumbers: `L${lessonMatch[0]}|A${assessmentMatch[0]}`,
+                    emptyLogTest: String(isEmptyLogTest)
+                }).toString();
 
-            chrome.tabs.create({ url: 'https://www.connexus.com/log/logEntry.aspx?idWebuser=' + request.studentID + '&sendto=%2flog%2fdefault.aspx%3fidWebuser%3d' + request.studentID + '&sectionId=' + result.currentApproval.sectionId + '&adjStr=' + adjString + '&appWindow=' + appWindow + '&workNumbers=' + workNumbers, active: true}, function(tab) {
-                // execute the download homeroom external script on the new tab
-                chrome.scripting.executeScript({
+                const tab = await chrome.tabs.create({ url: logUrl.toString(), active: true });
+                await waitForTabLoad(tab.id);
+                await chrome.scripting.executeScript({
                     target: { tabId: tab.id },
                     files: ['js/connexus/log/createLog.js'],
                     world: 'MAIN'
                 });
-            });
-        });
+                sendResponse({ success: true });
+            } catch (error) {
+                console.warn('Unable to create attendance log entry:', error);
+                sendResponse({ success: false, error: error.message });
+            }
+        })();
+        return true;
     };
     if (request.type == "sendWebmail") {
         chrome.storage.local.get(null, function(result) {	

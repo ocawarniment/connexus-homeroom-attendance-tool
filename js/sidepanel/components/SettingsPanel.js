@@ -42,7 +42,7 @@ import {
 const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSettings, onRefreshData }) => {
   const [settings, setSettings] = useState({});
   const [approvalWindow, setApprovalWindow] = useState(2);
-  const [extensionVersion, setExtensionVersion] = useState('4.0.0');
+  const [extensionVersion, setExtensionVersion] = useState('4.0.2');
   const [chatLedgerVersion, setChatLedgerVersion] = useState('Loading...');
   const [developerModeClickCount, setDeveloperModeClickCount] = useState(0);
   const [isDeveloperMode, setIsDeveloperMode] = useState(false);
@@ -66,7 +66,7 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
     fetch('./manifest.json')
       .then(response => response.json())
       .then(manifest => {
-        setExtensionVersion(manifest.version || '4.0.0');
+        setExtensionVersion(manifest.version || '4.0.2');
       })
       .catch(error => {
         console.error('Error loading manifest:', error);
@@ -419,9 +419,25 @@ const SettingsPanel = ({ isOpen, onClose, userSettings, chatLedger, onUpdateSett
                     }
                     sx={{ my: 0 }}
                   />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={settings.allowEmptyLogTest || false}
+                        onChange={(e) => handleDeveloperSettingChange('allowEmptyLogTest', e.target.checked)}
+                        size="small"
+                        sx={{ p: 0.25 }}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                        Allow Create Log Test With No Adjustments
+                      </Typography>
+                    }
+                    sx={{ my: 0 }}
+                  />
                 </FormGroup>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.65rem', lineHeight: 1.25 }}>
-                  Generates one test student for each {settings.school?.toUpperCase() || 'selected'} attendance rule. Uncheck to restore the previous roster.
+                  Test students cover each {settings.school?.toUpperCase() || 'selected'} attendance rule. Empty log testing opens a marked draft and never submits it automatically.
                 </Typography>
               </CardContent>
             </Card>

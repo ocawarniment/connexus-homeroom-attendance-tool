@@ -32,6 +32,12 @@ To activate Developer Mode:
 - **Developer Behavior**: Replaces each student's `totalOverdueLessons` with a random number between 1-100
 - **Use Case**: Useful for testing, demonstrations, or training without exposing real student performance data
 
+### Allow Create Log Test With No Adjustments
+- **Default**: Unchecked (disabled)
+- **Description**: Allows the attendance page's Create Log button to exercise the complete draft-log workflow when no time adjustments exist
+- **Developer Behavior**: Opens a draft log and fills its comment with an explicit developer-test message
+- **Safety**: The extension never submits the draft automatically; the user must still review and submit it manually
+
 ## Technical Implementation
 
 ### Frontend Changes
@@ -40,7 +46,8 @@ To activate Developer Mode:
 - Added checkbox for "Download All Students Regardless of Stage"
 - Added checkbox for "Redact Student Names"
 - Added checkbox for "Randomize Overdue Lesson Counts"
-- Settings are persisted in Chrome storage under `userSettings.developerMode`, `userSettings.downloadAllStudents`, `userSettings.redactStudentNames`, and `userSettings.randomizeOverdueCounts`
+- Added checkbox for "Allow Create Log Test With No Adjustments"
+- Settings are persisted in Chrome storage under `userSettings.developerMode`, `userSettings.downloadAllStudents`, `userSettings.redactStudentNames`, `userSettings.randomizeOverdueCounts`, and `userSettings.allowEmptyLogTest`
 
 ### Backend Changes
 - Modified `js/connexus/sections/getRoster.js` to check for the `downloadAllStudents` setting
