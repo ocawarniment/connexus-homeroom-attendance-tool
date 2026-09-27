@@ -25,7 +25,6 @@
   <div class="layout">
     <aside class="sidebar" aria-label="Documentation navigation">
       <a href="#download">Download</a>
-      <a href="whats-new.html">What's new</a>
       <a href="#homeroom-download">Download a homeroom</a>
       <a href="#install">Install or update</a>
       <a href="#videos">Video walkthroughs</a>
@@ -42,6 +41,36 @@
         <h2>Download CHAT</h2>
         <p>Download the current release from the public GitHub repository. The same link always provides the latest version.</p>
         <a class="text-link" href="https://github.com/ocawarniment/connexus-homeroom-attendance-tool/archive/refs/heads/master.zip">Download the current ZIP file</a>
+      </section>
+
+      <section id="changes" aria-labelledby="changes-heading">
+        <p class="section-label">Recent updates · last three months</p>
+        <h2 id="changes-heading">What’s new</h2>
+        <p>The plum icon identifies CHAT extension releases. The blue icon identifies CHAT Ledger updates, which can be retrieved from Settings without reinstalling CHAT.</p>
+        <div class="grid two changelog-grid">
+          <article class="card changelog-column extension-changes">
+            <div class="changelog-heading">
+              <span class="change-icon extension-icon" aria-hidden="true">⌘</span>
+              <div><p class="change-type">Extension</p><h3>CHAT 4.0.2</h3></div>
+            </div>
+            <ol class="change-list">
+              <li><time datetime="2026-09">September 2026</time><strong>Create Log fixes.</strong> The log workflow now checks that the required attendance details are present and uses the current Connexus form controls instead of fixed positions, making it more dependable when the form changes.</li>
+              <li><time datetime="2026-09">September 2026</time><strong>Safer developer testing.</strong> Developer Mode can open a clearly marked draft log when there are no adjustments; CHAT never submits that draft automatically.</li>
+              <li><time datetime="2026-09">September 2026</time><strong>Overdue-lesson downloads restored.</strong> Homeroom teachers can again retrieve overdue-lesson data for the selected completion measure.</li>
+            </ol>
+          </article>
+          <article class="card changelog-column ledger-changes">
+            <div class="changelog-heading">
+              <span class="change-icon ledger-icon" aria-hidden="true">▤</span>
+              <div><p class="change-type">CHAT Ledger</p><h3>Ledger 2.0.17</h3></div>
+            </div>
+            <ol class="change-list">
+              <li><time datetime="2026-09">September 2026</time><strong>Time-deficit guidance is blue.</strong> When a student is keeping up with lessons but has fewer logged hours than required, the guidance now uses an informational blue cue rather than an error color.</li>
+              <li><time datetime="2026-08">August 2026</time><strong>Attendance guidance refined.</strong> Ledger 2.0.14 added OHBCA configuration and clarified guidance for engagement, review, and adjustment scenarios.</li>
+              <li><time datetime="2026-08">August 2026</time><strong>Unused escalation-status field removed.</strong> Ledger 2.0.15 removes that measure from the configured school data views.</li>
+            </ol>
+          </article>
+        </div>
       </section>
 
       <section id="install">
